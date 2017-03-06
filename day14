@@ -1,0 +1,655 @@
+day14 20160804
+----------------------
+NFS 网络文件共享
+SUN公司开发的
+1.用处？
+存储共享方案
+网络共享文件系统
+2.如何使用
+showmount -e 172.25.0.10===>查看服务器共享目录的情况
+mount 172.25.0.10:/tmp /mnt ===》远程挂载
+3.服务端配置
+
+软件	nfs-utils rpcbind
+	rpcbind---rpc:管理客户端和服务端的ip和端口号---连接
+			remote	procedure call——远程过程调用协议
+	nfs-utils-nfs:传输数据
+配置	/etc/nfsmount.conf 	程序相关的
+	/etc/exports 		共享相关的
+service	rpcbind	nfs		注意服务启动顺序
+daemon	rpcbind	nfsd
+端口	111	2049 tcp
+------------------------------------------------------------------
+
+# sample /etc/exports file
+       /               master(rw) trusty(rw,no_root_squash)
+       /projects       proj*.local.domain(rw)
+       /usr            *.local.domain(ro) @trusted(rw)
+       /home/joe       pc001(rw,all_squash,anonuid=150,anongid=100)
+       /pub            *(ro,insecure,all_squash)
+       /srv/www        -sync,rw server @trusted @external(ro)
+       /foo            2001:db8:9:e54::/64(rw) 192.0.2.0/24(rw)
+       /build          buildhost[0-9].local.domain(rw)
+
+/tmp	172.25.15.10/24(rw)---读写权限
+/tmp	172.25.15.10/24(ro)---只读权限
+========================================================
+实验1：要求rhel7 172.25.X.10作为NFS网络共享文件服务器；
+	1)允许172.25.X.11这个客户端来挂接使用/tmp目录，有读写权限。
+	2)将读写权限改成只读权限；(ro)
+	3)允许172.25.X.0/24网段来挂家/tmp目录，读写权限；
+	4)服务器上创建id=1200的用户tom，并使用tom用户创建/tmp/tomfile；在客户端创建id=1200的用户jack，尝试去删除/tmp/tomfile; nfs--文件所属者和所属组是根据uid和gid来匹配的。
+	5)不建议使用(rw,no_root_squash)
+	6）自动挂接 	/etc/fstab（容易出问题）
+			/etc/bashrc
+			autofs服务
+=======================================================
+面试题：
+1.客户说为什么我是root，却不能删除root的文件呢（前提是该文件是nfs服务挂接使用的）？
+1）考虑到安全，当前我们nfs的配置中就设置为本地的root用户是没有权限删除服务器端的root用户文件的。
+2）如果客户你一定要去有这个权限，那么你可以修改配置，添加一个no_root_squash；不建议这么做。
+
+2.客户电话咨询说服务器出故障了，
+1）挂接目录执行任何操作就卡死了，然后我重启，就卡在哪里了，/mnt
+2）前一天还正常，今天上班开不了机了
+3）mount查看当前挂接目录，卡在哪里，杀掉进程，再mount还是卡在那里
+以上都有可能是nfs服务器连接出现问题了，应该去检查一下nfs服务器的运行情况。再排错。
+---------------------------------------------------------------------------
+===================================================================
+autofs
+自动挂接服务
+使用的时候挂接，不使用等待5分钟后卸载
+TIMEOUT=300 ==>/etc/sysconfig/autofs
+--------------------------------------------------
+软件		autofs
+service		autofs
+daemon		automount		
+配置文件 /etc/auto.master	父挂接点
+	/etc/auto.booboo	子挂接点
+-------------------------------------------
+172.25.0.10:/tmp /tmp/share
+		/tmp	父挂接点
+		share	子挂接点
+==============================================
+配置文件格式
+/etc/auto.master
+/tmp	/etc/auto.booboo
+
+/etc/auto.booboo
+share	-rw	172.25.0.10:/tmp
+===============================================
+～～～～～～～～～～～～～～～～～～～～～～～～～～～～～
+详细步骤
+nfs
+服务端
+[root@mastera0 ~]# yum install -y rpcbind nfs-utils
+[root@mastera0 ~]# vim /etc/exports
+[root@mastera0 ~]# cat /etc/exports
+/tmp	172.25.0.10/24(rw)
+[root@mastera0 ~]# systemctl start rpcbind
+[root@mastera0 ~]# systemctl start nfs
+[root@mastera0 ~]# netstat -luntp|grep rpcbind
+tcp        0      0 0.0.0.0:111             0.0.0.0:*               LISTEN      6312/rpcbind        
+tcp6       0      0 :::111                  :::*                    LISTEN      6312/rpcbind        
+udp        0      0 0.0.0.0:975             0.0.0.0:*                           6312/rpcbind        
+udp        0      0 0.0.0.0:111             0.0.0.0:*                           6312/rpcbind        
+udp6       0      0 :::975                  :::*                                6312/rpcbind        
+udp6       0      0 :::111                  :::*                                6312/rpcbind  
+------------------------------------------------------------
+[root@mastera0 ~]# su - superman
+[superman@mastera0 ~]$ touch /tmp/superman{1..4}
+[root@mastera0 ~]# su - batman
+[batman@mastera0 ~]$ touch /tmp/batman{1..4}
+[batman@mastera0 ~]$ exit
+[root@mastera0 ~]# touch /tmp/root{1..4}
+[root@mastera0 ~]# ll /tmp
+total 0
+-rw-rw-r--. 1 batman   batman   0 Jul  5 14:13 batman1
+-rw-rw-r--. 1 batman   batman   0 Jul  5 14:13 batman2
+-rw-rw-r--. 1 batman   batman   0 Jul  5 14:13 batman3
+-rw-rw-r--. 1 batman   batman   0 Jul  5 14:13 batman4
+-rw-r--r--. 1 root     root     0 Jul  5 14:13 root1
+-rw-r--r--. 1 root     root     0 Jul  5 14:13 root2
+-rw-r--r--. 1 root     root     0 Jul  5 14:13 root3
+-rw-r--r--. 1 root     root     0 Jul  5 14:13 root4
+-rw-rw-r--. 1 superman superman 0 Jul  5 14:13 superman1
+-rw-rw-r--. 1 superman superman 0 Jul  5 14:13 superman2
+-rw-rw-r--. 1 superman superman 0 Jul  5 14:13 superman3
+-rw-rw-r--. 1 superman superman 0 Jul  5 14:13 superman4
+----------------------------------------------------------------------
+[root@mastera0 tmp]# id batman
+uid=1002(batman) gid=1002(batman) groups=1002(batman),1003(justice-league)
+[root@mastera0 tmp]# grep 1003 /etc/passwd
+[root@mastera0 tmp]# grep 1003 /etc/group
+justice-league:x:1003:superman,batman
+
+
+客户端
+[root@workstation0 ~]# showmount -e 172.25.0.11
+Export list for 172.25.0.11:
+/tmp 172.25.0.10/255.255.255.0
+[root@workstation0 ~]# mount 172.25.0.11:/tmp /tmp
+[root@workstation0 ~]# ll /tmp
+total 0
+-rw-rw-r--. 1     1002     1002 0 Jul  5 14:13 batman1
+-rw-rw-r--. 1     1002     1002 0 Jul  5 14:13 batman2
+-rw-rw-r--. 1     1002     1002 0 Jul  5 14:13 batman3
+-rw-rw-r--. 1     1002     1002 0 Jul  5 14:13 batman4
+-rw-r--r--. 1 root     root     0 Jul  5 14:13 root1
+-rw-r--r--. 1 root     root     0 Jul  5 14:13 root2
+-rw-r--r--. 1 root     root     0 Jul  5 14:13 root3
+-rw-r--r--. 1 root     root     0 Jul  5 14:13 root4
+-rw-rw-r--. 1 superman superman 0 Jul  5 14:13 superman1
+-rw-rw-r--. 1 superman superman 0 Jul  5 14:13 superman2
+-rw-rw-r--. 1 superman superman 0 Jul  5 14:13 superman3
+-rw-rw-r--. 1 superman superman 0 Jul  5 14:13 superman4
+-------------------------------------------------------------
+[root@workstation0 tmp]# touch test
+[root@workstation0 tmp]# ll /tmp/test
+-rw-r--r--. 1 nfsnobody nfsnobody 0 Jul  5 14:17 /tmp/test
+#写入成功 , 如果没有指定 no_root_squash ,则以 root 用户挂载会被映射成 nfsnobody 用户。
+-------------------------------------------------------
+[root@workstation0 tmp]# useradd wonderwoman
+[root@workstation0 tmp]# passwd wonderwoman
+Changing password for user wonderwoman.
+New password: 
+BAD PASSWORD: The password fails the dictionary check - it is based on a dictionary word
+Retype new password: 
+passwd: all authentication tokens updated successfully.
+[root@workstation0 tmp]# su - wonderwoman
+[wonderwoman@workstation0 ~]$ cd /tmp
+[wonderwoman@workstation0 tmp]$ ll
+total 0
+-rw-rw-r--. 1 wonderwoman wonderwoman 0 Jul  5 14:13 batman1
+-rw-rw-r--. 1 wonderwoman wonderwoman 0 Jul  5 14:13 batman2
+-rw-rw-r--. 1 wonderwoman wonderwoman 0 Jul  5 14:13 batman3
+-rw-rw-r--. 1 wonderwoman wonderwoman 0 Jul  5 14:13 batman4
+-rw-r--r--. 1 root        root        0 Jul  5 14:13 root1
+-rw-r--r--. 1 root        root        0 Jul  5 14:13 root2
+-rw-r--r--. 1 root        root        0 Jul  5 14:13 root3
+-rw-r--r--. 1 root        root        0 Jul  5 14:13 root4
+-rw-rw-r--. 1 superman    superman    0 Jul  5 14:13 superman1
+-rw-rw-r--. 1 superman    superman    0 Jul  5 14:13 superman2
+-rw-rw-r--. 1 superman    superman    0 Jul  5 14:13 superman3
+-rw-rw-r--. 1 superman    superman    0 Jul  5 14:13 superman4
+-rw-r--r--. 1 nfsnobody   nfsnobody   0 Jul  5 14:17 test
+[wonderwoman@workstation0 tmp]$ id wonderwoman
+uid=1002(wonderwoman) gid=1002(wonderwoman) groups=1002(wonderwoman)
+[wonderwoman@workstation0 tmp]$ touch wonderwoman1
+[wonderwoman@workstation0 tmp]$ ll wonderwoman1
+-rw-rw-r--. 1 wonderwoman wonderwoman 0 Jul  5 14:21 wonderwoman1
+
+# 服务器端看到的文件属性为：
+[root@mastera0 tmp]# ll wonderwoman1
+-rw-rw-r--. 1 batman    batman    0 Jul  5 14:21 wonderwoman1
+# 以 wonderwoman 用户创建的文件被映射成 batman 用户 , 因为在服务器上 batman 的 id 与 wonderwoman 的 id 相同
+--------------------------------------------------------------
+[wonderwoman@workstation0 tmp]$ exit
+logout
+[root@workstation0 tmp]# useradd greenlantern
+[root@workstation0 tmp]# passwd greenlantern
+Changing password for user greenlantern.
+New password: 
+BAD PASSWORD: The password fails the dictionary check - it is based on a dictionary word
+Retype new password: 
+passwd: all authentication tokens updated successfully.
+[root@workstation0 tmp]# id greenlantern
+uid=1003(greenlantern) gid=1003(greenlantern) groups=1003(greenlantern)
+[root@workstation0 tmp]# su - greenlantern
+[greenlantern@workstation0 ~]$ cd /tmp
+[greenlantern@workstation0 tmp]$ touch greenlantern0
+[greenlantern@workstation0 tmp]$ ll greenlantern0
+-rw-rw-r--. 1 greenlantern greenlantern 0 Jul  5 14:30 greenlantern0
+
+# 服务器端看到的文件属性为：
+[root@mastera0 tmp]# ll greenlantern0
+-rw-rw-r--. 1 1003 justice-league 0 Jul  5 14:30 greenlantern0
+# 以 greenlantern 用户创建的文件被映射成 1003 用户 , 因为在服务器上没有与 greenlantern 的 id 相同的用户
+# 同时该文件的所属组被映射成了 justice-league ，因为再服务器上 justice-league 组的 id 为1003
+
+----------------------------------------------------------------------------------------
+[greenlantern@workstation0 tmp]$ exit
+logout
+[root@workstation0 tmp]# touch rootfile1
+[root@workstation0 tmp]# ll rootfile1
+-rw-r--r--. 1 nfsnobody nfsnobody 0 Jul  5 14:36 rootfile1
+
+# 服务器端看到的文件属性为：
+[root@mastera0 tmp]# ll rootfile1 
+-rw-r--r--. 1 nfsnobody nfsnobody 0 Jul  5 14:36 rootfile1
+# 以 root 用户创建的文件被映射成 nfsnobody 用户 , 因为在服务器上没有指定 no_root_squash
+# no_root_squash：登入 NFS 主机使用分享目录的使用者，如果是 root 的话，那么对于这个分享的目录来说，他就具有 root 的权限！这个项目『极不安全』，不建议使用！ 
+# root_squash：在登入 NFS 主机使用分享之目录的使用者如果是 root 时，那么这个使用者的权限将被压缩成为匿名使用者，通常他的 UID 与 GID 都会变成 nobody 那个系统账号的身份。
+
+-----------------------------------------------------------------
+面试题：有客户说为什么他是root用户，却不可以删除属于root用户的文件呢？该文件是nfs服务器挂在目录下的。你怎么解释？
+[root@workstation0 tmp]# ll
+total 0
+-rw-rw-r--. 1 wonderwoman  wonderwoman  0 Jul  5 14:13 batman1
+-rw-rw-r--. 1 wonderwoman  wonderwoman  0 Jul  5 14:13 batman2
+-rw-rw-r--. 1 wonderwoman  wonderwoman  0 Jul  5 14:13 batman3
+-rw-rw-r--. 1 wonderwoman  wonderwoman  0 Jul  5 14:13 batman4
+-rw-rw-r--. 1 greenlantern greenlantern 0 Jul  5 14:30 greenlantern0
+-rw-r--r--. 1 root         root         0 Jul  5 14:13 root1
+-rw-r--r--. 1 root         root         0 Jul  5 14:13 root2
+-rw-r--r--. 1 root         root         0 Jul  5 14:13 root3
+-rw-r--r--. 1 root         root         0 Jul  5 14:13 root4
+-rw-r--r--. 1 nfsnobody    nfsnobody    0 Jul  5 14:36 rootfile1
+-rw-rw-r--. 1 superman     superman     0 Jul  5 14:13 superman1
+-rw-rw-r--. 1 superman     superman     0 Jul  5 14:13 superman2
+-rw-rw-r--. 1 superman     superman     0 Jul  5 14:13 superman3
+-rw-rw-r--. 1 superman     superman     0 Jul  5 14:13 superman4
+-rw-r--r--. 1 nfsnobody    nfsnobody    0 Jul  5 14:17 test
+-rw-rw-r--. 1 wonderwoman  wonderwoman  0 Jul  5 14:21 wonderwoman1
+[root@workstation0 tmp]# rm -rf /tmp/root1
+rm: cannot remove ‘/tmp/root1’: Operation not permitted
+
+
+
+[root@mastera0 tmp]# vim /etc/exports
+/tmp    172.25.0.10/255.255.255.0(rw,no_root_squash)
+[root@mastera0 tmp]# exportfs -r
+[root@mastera0 tmp]# systemctl reload nfs
+[root@workstation0 tmp]# touch rootfile2
+[root@workstation0 tmp]# ll rootfile2
+-rw-r--r--. 1 root root 0 Jul  5 14:47 rootfile2
+
+# 服务器端看到的文件属性为：
+[root@mastera0 tmp]# ll rootfile2
+-rw-r--r--. 1 root root 0 Jul  5 14:47 rootfile2
+#
+
+[root@workstation0 tmp]# rm -rf root1
+[root@workstation0 tmp]# ll root1
+ls: cannot access root1: No such file or directory
+# 当设置为no_root_squash时，使用nfs服务挂载172.25.0.11:/tmp目录的时候，就获得了nfs服务器的root权限，这是很不安全的。因此不建议客户设置为no_root_squash。非要删除某个root用户的文件，应该去nfs服务器上操作。
+
+-------------------------------------------------------
+自动挂接autofs
+rhel7 作为nfs网络共享文件系统服务；rhel6作为nfs的客户端现在想自动挂接rhel7的/tmp目录使用，可以通过autofs。
+[root@rhel6 ~]# yum install -y autofs
+[root@rhel6 ~]# vim /etc/auto.master
+/tmp    /etc/auto.booboo
+[root@rhel6 ~]# vim /etc/auto.booboo
+share   -rw     172.25.0.10:/tmp
+# 此处可以通过man 5 autofs查看配置文件的格式
+[root@rhel6 ~]# service autofs start
+Starting automount:                                        [  OK  ]
+[root@rhel6 ~]# ll /tmp/share/
+
+========================================================================
+SAMBA
+作用：windows和类unix系统文件共享服务
+
+*****************************************************************
+# 服务端linux
+-----------------------------
+软件		samba samba-common
+service		nmb	smb
+daemon		nmbd	smbd
+端口		137 138|139 445
+配置文件		/etc/samba/smb.conf
+数据文件		/var/lib/samba
+日志文件		/var/log/samba	
+
+===========================================
+# 客户端linux
+软件		samba-client
+命令		smbclient
+		smbclient -L ip -U username
+		smbpasswd -a username 
+		smbpasswd username
+		smbclient //172.25.0.11/共享名
+		smbclient //172.25.0.11/共享名 -U student
+		mount -t cifs //172.25.15.11/共享名 /mnt guest
+		mount -t cifs //172.25.15.11/共享名 /mnt -o username=student
+------------------------------------------------------------------------------
+详细步骤
+****************************************************************
+===================================================================
+系统用户
+############
+服务器端rhel6
+############
+[root@rhel6 ~]# yum install -y samba samba-common
+[root@rhel6 ~]# service iptables stop
+iptables: Setting chains to policy ACCEPT: filter          [  OK  ]
+iptables: Flushing firewall rules:                         [  OK  ]
+iptables: Unloading modules:                               [  OK  ]
+[root@rhel6 ~]# 
+[root@rhel6 ~]# service smb start
+Starting SMB services:                                     [  OK  ]
+[root@rhel6 ~]# service nmb start
+Starting NMB services:                                     [  OK  ]
+[root@rhel6 ~]# id student
+uid=500(student) gid=500(student) groups=500(student)
+[root@rhel6 ~]# which smbpasswd
+/usr/bin/smbpasswd
+[root@rhel6 ~]# smbpasswd -a student
+New SMB password:
+Retype new SMB password:
+Added user student.
+[root@rhel6 ~]# getsebool -a|grep samba
+samba_create_home_dirs --> off
+samba_domain_controller --> off
+samba_enable_home_dirs --> off
+samba_export_all_ro --> off
+samba_export_all_rw --> off
+samba_portmapper --> off
+samba_run_unconfined --> off
+samba_share_fusefs --> off
+samba_share_nfs --> off
+sanlock_use_samba --> off
+use_samba_home_dirs --> off
+virt_use_samba --> off
+[root@rhel6 ~]# setsebool -P samba_enable_home_dirs 1
+[root@rhel6 ~]# getsebool -a|grep samba
+samba_create_home_dirs --> off
+samba_domain_controller --> off
+samba_enable_home_dirs --> on
+samba_export_all_ro --> off
+samba_export_all_rw --> off
+samba_portmapper --> off
+samba_run_unconfined --> off
+samba_share_fusefs --> off
+samba_share_nfs --> off
+sanlock_use_samba --> off
+use_samba_home_dirs --> off
+virt_use_samba --> off
+-----------------------------------
+# 客户端linux——类似ftp的方式访问
+[root@rhel7 ~]# systemctl stop firewalld
+[root@rhel7 ~]# yum install -y samba-client
+[root@rhel7 ~]# smbclient -L 172.25.0.11
+Enter root's password: 
+Anonymous login successful
+Domain=[MYGROUP] OS=[Unix] Server=[Samba 3.6.9-164.el6]
+
+	Sharename       Type      Comment
+	---------       ----      -------
+	IPC$            IPC       IPC Service (Samba Server Version 3.6.9-164.el6)
+Anonymous login successful
+Domain=[MYGROUP] OS=[Unix] Server=[Samba 3.6.9-164.el6]
+
+	Server               Comment
+	---------            -------
+	RHEL6                Samba Server Version 3.6.9-164.el6
+
+	Workgroup            Master
+	---------            -------
+	MYGROUP              RHEL6
+[root@rhel7 ~]# smbclient -L 172.25.0.11 -U student
+Enter student's password: 
+Domain=[MYGROUP] OS=[Unix] Server=[Samba 3.6.9-164.el6]
+
+	Sharename       Type      Comment
+	---------       ----      -------
+	IPC$            IPC       IPC Service (Samba Server Version 3.6.9-164.el6)
+	student         Disk      Home Directories
+Domain=[MYGROUP] OS=[Unix] Server=[Samba 3.6.9-164.el6]
+
+	Server               Comment
+	---------            -------
+	RHEL6                Samba Server Version 3.6.9-164.el6
+
+	Workgroup            Master
+	---------            -------
+	MYGROUP              RHEL6
+[root@rhel7 ~]# smbclient //172.25.0.11/student -U student
+Enter student's password: 
+Domain=[MYGROUP] OS=[Unix] Server=[Samba 3.6.9-164.el6]
+smb: \> 
+smb: \> ls
+NT_STATUS_ACCESS_DENIED listing \*
+smb: \> ls
+  .                                   D        0  Thu Jul  2 04:01:16 2015
+  ..                                  D        0  Thu Jul  2 03:57:29 2015
+  .ssh                               DH        0  Thu Jul  2 04:01:07 2015
+  .bashrc                             H      124  Tue Jul  9 09:24:50 2013
+  .bash_logout                        H       18  Tue Jul  9 09:24:50 2013
+  .mozilla                           DH        0  Thu Jul  2 03:36:20 2015
+  .bash_history                       H        5  Thu Jul  2 04:01:16 2015
+  .gnome2                            DH        0  Wed Jul 14 11:55:40 2010
+  .bash_profile                       H      176  Tue Jul  9 09:24:50 2013
+
+		49584 blocks of size 8192. 45708 blocks available
+smb: \> exit
+-------------------------------------------------------------
+# 客户端windows
+打开浏览器输入\\172.25.0.11\
+输入student和uplooking密码后就可以进入服务器中的用户家目录，创建目录aa，以及文件aa下的dd.txt
+--------------------------------------------------------------
+# 客户端linux
+[root@rhel7 ~]# smbclient //172.25.0.11/student -U student
+Enter student's password: 
+Domain=[MYGROUP] OS=[Unix] Server=[Samba 3.6.9-164.el6]
+smb: \> ls
+  .                                   D        0  Thu Aug  4 04:30:31 2016
+  ..                                  D        0  Thu Jul  2 03:57:30 2015
+  .ssh                               DH        0  Thu Jul  2 04:01:07 2015
+  aa                                  D        0  Thu Aug  4 04:30:28 2016
+  .bashrc                             H      124  Tue Jul  9 09:24:50 2013
+  .bash_logout                        H       18  Tue Jul  9 09:24:50 2013
+  .mozilla                           DH        0  Thu Jul  2 03:36:20 2015
+  .bash_history                       H        5  Thu Jul  2 04:01:16 2015
+  .gnome2                            DH        0  Wed Jul 14 11:55:40 2010
+  .bash_profile                       H      176  Tue Jul  9 09:24:50 2013
+
+		49584 blocks of size 8192. 45707 blocks available
+smb: \> get aa
+NT_STATUS_FILE_IS_A_DIRECTORY opening remote file \aa
+smb: \> cd aa
+smb: \aa\> ls
+  .                                   D        0  Thu Aug  4 04:30:28 2016
+  ..                                  D        0  Thu Aug  4 04:30:31 2016
+  dd.txt                              A        2  Thu Aug  4 04:31:01 2016
+
+		49584 blocks of size 8192. 45707 blocks available
+smb: \aa\> get dd.txt
+getting file \aa\dd.txt of size 2 as dd.txt (1.0 KiloBytes/sec) (average 1.0 KiloBytes/sec)
+可以查看到了。
+
+********************************************************************
+=====================================================================
+匿名用户 20160805
+############
+服务器端rhel6
+############
+
+1.创建共享目录/var/lib/samba/share
+[root@rhel6 ~]# mkdir /var/lib/samba/share
+2.修改配置文件
+[root@rhel6 ~]# vim /etc/samba/smb.conf
+[public]
+       comment = Public Stuff
+       path = /var/lib/samba/share
+       public = yes
+       writable = yes
+3.重启服务
+[root@rhel6 ~]# service smb restart
+Shutting down SMB services:                                [  OK  ]
+Starting SMB services:                                     [  OK  ]
+[root@rhel6 ~]# service nmb restart
+Shutting down NMB services:                                [  OK  ]
+Starting NMB services:                                     [  OK  ]
+4.修改共享目录的UGO权限
+[root@rhel6 ~]# ll -d /var/lib/samba/share
+drwxr-xr-x. 2 root root 4096 Aug  5 10:27 /var/lib/samba/share
+[root@rhel6 ~]# grep nobody /etc/passwd
+nobody:x:99:99:Nobody:/:/sbin/nologin
+nfsnobody:x:65534:65534:Anonymous NFS User:/var/lib/nfs:/sbin/nologin
+[root@rhel6 ~]# chown nobody. /var/lib/samba/share
+[root@rhel6 ~]# ll -d /var/lib/samba/share
+drwxr-xr-x. 2 nobody nobody 4096 Aug  5 10:27 /var/lib/samba/share
+[root@rhel6 ~]# touch /var/lib/samba/share
+[root@rhel6 ~]# touch /var/lib/samba/share/smb-file{1..5}
+[root@rhel6 ~]# chown nobody. /var/lib/samba/share -R
+
+[root@rhel6 ~]# service smb stop
+Shutting down SMB services:                                [  OK  ]
+[root@rhel6 ~]# service smb start
+Starting SMB services:                                     [  OK  ]
+
+############
+客户端rhel7
+############
+[root@rhel7 ~]# smbclient -L 172.25.0.11
+Enter root's password: 
+Anonymous login successful
+Domain=[MYGROUP] OS=[Unix] Server=[Samba 3.6.9-164.el6]
+
+	Sharename       Type      Comment
+	---------       ----      -------
+	public          Disk      Public Stuff
+	IPC$            IPC       IPC Service (Samba Server Version 3.6.9-164.el6)
+Anonymous login successful
+Domain=[MYGROUP] OS=[Unix] Server=[Samba 3.6.9-164.el6]
+
+	Server               Comment
+	---------            -------
+	RHEL6                Samba Server Version 3.6.9-164.el6
+
+	Workgroup            Master
+	---------            -------
+	MYGROUP              RHEL6
+[root@rhel7 ~]# smbclient //172.25.0.11/public
+Enter root's password: 
+Anonymous login successful
+Domain=[MYGROUP] OS=[Unix] Server=[Samba 3.6.9-164.el6]
+smb: \> ls
+  .                                   D        0  Thu Aug  4 22:32:12 2016
+  ..                                  D        0  Thu Aug  4 22:30:52 2016
+  smb-file4                           N        0  Thu Aug  4 22:32:12 2016
+  smb-file2                           N        0  Thu Aug  4 22:32:12 2016
+  smb-file5                           N        0  Thu Aug  4 22:32:12 2016
+  smb-file1                           N        0  Thu Aug  4 22:32:12 2016
+  smb-file3                           N        0  Thu Aug  4 22:32:12 2016
+
+		34505 blocks of size 524288. 26941 blocks available
+smb: \> get smb-file1
+getting file \smb-file1 of size 0 as smb-file1 (0.0 KiloBytes/sec) (average 0.0 KiloBytes/sec)
+smb: \> put rhel7 
+putting file rhel7 as \rhel7 (0.0 kb/s) (average 0.0 kb/s)
+smb: \> ls
+  .                                   D        0  Thu Aug  4 22:34:46 2016
+  ..                                  D        0  Thu Aug  4 22:30:52 2016
+  smb-file4                           N        0  Thu Aug  4 22:32:12 2016
+  rhel7                               A        0  Thu Aug  4 22:34:46 2016
+  smb-file2                           N        0  Thu Aug  4 22:32:12 2016
+  smb-file5                           N        0  Thu Aug  4 22:32:12 2016
+  smb-file1                           N        0  Thu Aug  4 22:32:12 2016
+  smb-file3                           N        0  Thu Aug  4 22:32:12 2016
+
+		34505 blocks of size 524288. 26941 blocks available
+smb: \> exit
+
+############
+客户端windows
+############
+打开浏览器输入\\172.25.0.11\
+就能看到public了
+
+=================================================================
+～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～
+以类似nfs挂接的方式来共享samba
+###
+客户端
+###
+mount -t cifs //172.25.0.11/student /mnt -o username=student
+uplooking
+
+1.安装软件cifs-utils
+[root@rhel7 ~]# yum install -y cifs-utils
+2.mount挂载
+[root@rhel7 ~]# mount -t cifs //172.25.0.11/student /mnt -o username=student
+Password for student@//172.25.0.11/student:  *********
+[root@rhel7 ~]# mount|tail -n 1
+//172.25.0.11/student on /mnt type cifs (rw,relatime,vers=1.0,cache=strict,username=student,domain=RHEL6,uid=0,noforceuid,gid=0,noforcegid,addr=172.25.0.11,unix,posixpaths,serverino,acl,rsize=1048576,wsize=65536,actimeo=1)
+[root@rhel7 ~]# cd /mnt
+[root@rhel7 mnt]# ll
+total 1024
+-rwxrw-r--. 1 500 500 8 Aug  4 22:15 file-student.txt
+drwxr-xr-x. 2 500 500 0 Aug  4 22:19 windows
+
+3.可以设置开机自动挂载，/etc/bashrc或者/etc/profile中
+
+===================================================================================
+总结文件共享服务
+=============
+		FTP	NFS	SAMBA
+软件
+service
+daemon
+端口
+配置文件
+数据文件
+--------------------------------------------------
+权限
+配置文件
+文件目录
+SELINUX
+-------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+==================================================================================
+Samba的主配置文件/etc/samba/smb.conf详细解析
+首先是全局配置
+【global】
+        workgroup = MYGROUP     -->工作组，工作组是windows上的概念
+        server string = Samba Server Version %v   -->关于samba的说明
+
+        netbios name = MYSERVER   -->网络名称
+
+;       interfaces = lo eth0 192.168.12.2/24 192.168.13.2/24   -->接口网段信息
+;       hosts allow = 127. 192.168.12. 192.168.13.    -->允许哪些机器来访问共享
+
+;       max protocol = SMB2
+【logging options】  关于日志的配置
+ 	log file = /var/log/samba/log.%m    	日志存放的位置，%m代表日期
+ 	max log size = 50			日志的大小限制为50K
+【 Standalone Server Options 】 关于安全级别的相关配置
+        security = user    --> user代表需要用户名和密码，密码与下面的passdb backend有关，share代表任何来都可以直接访问，server指的是使用外部的密码，需要提供password server = IP的设置值才行。
+        passdb backend = tdbsam   -->数据库格式，默认的格式是tdbsam，文职被放置到/var/lib/samba/private/passwd.tdb
+ 
+【 Share Definitions 】
+[homes]    -->默认情况用户家目录的共享信息
+        comment = Home Directories
+        browseable = no
+        writable = yes
+;       valid users = %S
+;       valid users = MYDOMAIN\%S
+[printers]  -->关于打印机的配置，这是一些例子。下面跟上了一些选项。
+        path = /var/spool/samba
+        browseable = no
+        guest ok = no
+        writable = no
+        printable = yes
+[sharesmb]        -->共享目录名
+        comment = 说明
+        path = /test    -->共享路径
+        public = yes    -->是否所有人都能够访问
+        writable = yes  -->是否可以写
+        printable = no  -->是否打印，默认是no，写了yes会直接被传递到打印机，可以省略该行
+        write list = +staff  -->可写用户列表。我们这里先把这行删掉。
+        browsable=no    -->是否可浏览，如果是yes则默认隐藏。
+     	hosts allow= 用来限制主机和网段。谁可以访问。
+========================================================================
+
+
+
+
+

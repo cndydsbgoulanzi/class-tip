@@ -1,0 +1,393 @@
+day9 文件系统和磁盘管理-续
+
+------------------------
+复习昨日内容
+1.查看当前系统中已挂接的文件系统的使用情况，已经使用多少，还剩下多少空闲空间等
+2.查看但前系统中已挂接的文件系统的类型，读写权限等
+
+3.如何去划分分区，命令
+4.磁盘分区--->格式化创建文件系统--->挂接使用
+
+=======================================================
+quota
+磁盘配额
+1.为了合理地使用我们服务器的磁盘空间，防止一些搞破坏的用户，滥用磁盘空间，影响其他用户使用。
+2.可以限制用户的硬盘可用空间，最大创建的文件数量 （inode和block来作限制），
+软硬限制
+硬限制 3M 10个
+软限制 2M 8个
+3.如何来配置呢？root
+关闭selinux
+[root@rhel6 ~]# setenforce 0
+
+1）内核是否支持quota		dmesg | grep quota
+2）软件是否安装			rpm -q quota
+3）要作限制的目录是否支持quota	/mnt/test1---/dev/vdb1 
+				mount -o usrquota,grpquota /dev/vdb1 /mnt/test1
+4）检查该目录			quotacheck -cugm /mnt/test1   ===>quota.user  quota.group
+5）激活该目录的quota		quotaon /mnt/test1
+6）配置该目录的磁盘配额quota	edquota student 用户名
+7）查看该目录的磁盘配额情况		repquota /mnt/test1
+8）测试				student 
+
+要求 
+硬限制 3M 10个 3*1024=3072
+软限制 2M 8个	
+---------------------------------------
+Disk quotas for user student (uid 500):
+  Filesystem                   blocks       soft       hard     inodes     soft     hard
+  /dev/vdb1                         4       2048       3072     1        8        10
+1.单位，blocks kb，inode 个
+2.block 后面的soft代表软限制，能够用多少的空间，2M；hard硬限制，3M
+3.inodes后面的soft代表软限制，能够拥有多少的文件，8个;hard硬限制，10个
+4.block下面的代表已经使用的空间大小为，4K；inodes下面的代表已经拥有的文件个数。
+
+===============================================================================
+课堂实验：
+1.要求将/dev/vdb1挂接在/mnt/test1/目录，所属者和所属组为student，要求设置磁盘配额，具体如下： 
+	硬限制 3M 10个 3*1024=3072
+	软限制 2M 8个
+
+[student@rhel6 test1]$ touch file{1..11}
+vdb1: warning, user file quota exceeded.
+vdb1: write failed, user file limit reached.
+touch: cannot touch `file10': Disk quota exceeded
+touch: cannot touch `file11': Disk quota exceeded
+
+[student@rhel6 test1]$ dd if=/dev/zero of=/mnt/test1/filem bs=1M count=4
+dd: opening `/mnt/test1/filem': Disk quota exceeded
+
+----------------------------------------------------------------------------------
+2.要求将/dev/vdb2挂接在/home/student/目录下，要求设置磁盘配额，具体如下： 
+	硬限制 3M 10个 3*1024=3072
+	软限制 2M 8个
+1.将/home/student/目录下的文件打包压缩保存在/tmp/student.tar.bz2
+2.挂载/dev/vdb2文件系统使用，挂载时添加usrquota选项
+3.将/tmp/student.tar.bz2解压到/，这一步的目的是什么？ 由于挂载后会覆盖student家目录下的文件，所以我们将student家目录下的文件打包压缩，挂载/dev/vdb2之后，再将备份文件解压回来。
+4.检测quota
+5.激活quota
+6.编辑quota
+7.打印quota
+8.测试
+
+9.将/dev/vdb2文件系统永久挂载在/home/student/下使用
+10.测试
+
+=======================================================================
+swap 交换分区
+
+1.查看当前系统内存中swap分区的大小	free -m
+2.划分swap分区			t L 82		
+3.格式化swap分区			mkswap /dev/vdb6		
+4.使用swap分区			swapon /dev/vdb6
+5.停止使用该swap分区		swapoff /dev/vdb6
+
+------------------------------------------------
+虚拟内存=内存+swap
+
+=======================================================================
+LVM 
+逻辑卷管理
+(Logical Volume Manager) 
+
+----------------------------------
+/dev/vdb ----fdisk----mkfs-----mount----/mnt
+/dev/vdb-----fdisk--逻辑曾--mkfs---mount---/mnt
+
+/dev/vdb1	/dev/vdb2	/dev/vdb3
+pv 1G		pv 1G		pv 1G
+		
+		vg 3G
+lv1 100M 
+lv2 1G
+lv3 200M
+
+pv	Physical Volume	物理卷
+vg	卷组
+lv	逻辑卷
+
+1.制作pv 	pvcreate /dev/vdb1
+		查看pvs pvdisplay
+2.组成vg	vgcreate vgtest /dev/vdb1 /dev/vdb2 /dev/vdb3
+		查看vgs	vgdisplay
+3.划分lv	lvcreate -L 100M -n lv1 vgtest
+		查看lvs	lvdisplay
+
+/dev/vgtest/lv1
+/dev/mapper/vgtest-lv1
+================================================
+课堂实验：
+1.fdisk划分/dev/vdb，要求，划分成3个主分区，大小都为1G；将/dev/vdb{1,2,3}做成pv，组成vg，名字自定义；从该vg中划分出lv1，大小为100M，划分出lv2，大小为100M；将lv1和lv2创建文件系统ext4，并分别挂接在/tmp/lvfile1/和/tmp/lvfile2/目录下使用。
+
+=================================================
+拓展lv--vg足够
+
+注意：rhel7中xfs文件系统的拓展使用命令为xfs_growfs
+  
+1.判断vg是否还有空闲空间，如果有，那么第二步 vgs
+2.拓展lv的空间,两个命令 lvextend 和 lvresize
+	lvextend -L +2G /dev/vgtest/lv1
+	lvresize -L 2.1G /dev/vgtest/lv1
+3.查看lv的大小，是否拓展成功 lvs
+4.查看文件系统的大小，发现并没有拓展 df -h
+4.拓展文件系统，ext4文件系统拓展的命令为 resize2fs /dev/vgtest/lv1
+5.再次查看文件系统的大小，发现已经拓展成功 df -h
+---------------------------
+课堂练习
+
+2.如果现在/tmp/lvfile1不够用了，想拓展空间到2.1G，怎么办？
+100M-->2G
+1.判断vg够不够
+[root@rhel6 ~]# vgs
+  VG       #PV #LV #SN Attr   VSize  VFree
+  vg_rhel6   1   2   0 wz--n- 17.51g    0 
+  vgtest     3   2   0 wz--n-  2.99g 2.79g
+2.lvextend -L +2G /dev/vgtest/lv1 或者 lvresize -L 2.1G /dev/vgtest/lv1
+3.resize2fs /dev/vgtest/lv1
+[root@rhel6 ~]# lvs
+  LV       VG       Attr       LSize   Pool Origin Data%  Move Log Cpy%Sync Convert
+  LogVol00 vg_rhel6 -wi-ao---- 400.00m                                             
+  LogVol01 vg_rhel6 -wi-ao----  17.12g                                             
+  lv1      vgtest   -wi-ao----   2.10g                                             
+  lv2      vgtest   -wi-ao---- 100.00m                                             
+[root@rhel6 ~]# df -h
+Filesystem                     Size  Used Avail Use% Mounted on
+/dev/mapper/vg_rhel6-LogVol01   17G  2.9G   14G  18% /
+tmpfs                          499M   72K  499M   1% /dev/shm
+/dev/vda1                      485M   39M  421M   9% /boot
+/dev/mapper/vg_rhel6-LogVol00  388M   11M  358M   3% /home
+/dev/mapper/vgtest-lv1          97M  5.6M   87M   7% /tmp/lvfile1
+/dev/mapper/vgtest-lv2          97M  5.6M   87M   7% /tmp/lvfile2
+[root@rhel6 ~]# resize2fs /dev/vgtest/lv1
+resize2fs 1.41.12 (17-May-2010)
+Filesystem at /dev/vgtest/lv1 is mounted on /tmp/lvfile1; on-line resizing required
+old desc_blocks = 1, new_desc_blocks = 9
+Performing an on-line resize of /dev/vgtest/lv1 to 2199552 (1k) blocks.
+The filesystem on /dev/vgtest/lv1 is now 2199552 blocks long.
+
+[root@rhel6 ~]# df -h
+Filesystem                     Size  Used Avail Use% Mounted on
+/dev/mapper/vg_rhel6-LogVol01   17G  2.9G   14G  18% /
+tmpfs                          499M   72K  499M   1% /dev/shm
+/dev/vda1                      485M   39M  421M   9% /boot
+/dev/mapper/vg_rhel6-LogVol00  388M   11M  358M   3% /home
+/dev/mapper/vgtest-lv1         2.1G  7.0M  2.0G   1% /tmp/lvfile1
+/dev/mapper/vgtest-lv2          97M  5.6M   87M   7% /tmp/lvfile2
+======================================================================================
+
+拓展lv--vg不够
+
+1.判断vg是否还有空闲空间，如果不够，那么第二步 vgs
+2.拓展vg的大小	vgextend vgtest /dev/vdb5
+3.拓展lv的空间,两个命令 lvextend 和 lvresize
+	lvextend -L +2.9G /dev/vgtest/lv2
+	lvresize -L 3G /dev/vgtest/lv2
+3.查看lv的大小，是否拓展成功 lvs
+4.查看文件系统的大小，发现并没有拓展 df -h
+4.拓展文件系统，ext4文件系统拓展的命令为 resize2fs /dev/vgtest/lv2
+5.再次查看文件系统的大小，发现已经拓展成功 df -h
+--------------------------------------------------------------
+
+课堂练习：
+3.如果现在/tmp/lvfile2不够用了，希望拓展到3G，怎么办？
+[root@rhel6 ~]# pvs
+  PV         VG       Fmt  Attr PSize    PFree  
+  /dev/vda3  vg_rhel6 lvm2 a--    17.51g      0 
+  /dev/vdb1  vgtest   lvm2 a--  1020.00m      0 
+  /dev/vdb2  vgtest   lvm2 a--  1020.00m      0 
+  /dev/vdb3  vgtest   lvm2 a--  1020.00m 812.00m
+  /dev/vdb5           lvm2 a--     3.00g   3.00g
+[root@rhel6 ~]# vgextend vgtest /dev/vdb5
+  Volume group "vgtest" successfully extended
+[root@rhel6 ~]# vgs
+  VG       #PV #LV #SN Attr   VSize  VFree
+  vg_rhel6   1   2   0 wz--n- 17.51g    0 
+  vgtest     4   2   0 wz--n-  5.98g 3.79g
+[root@rhel6 ~]# lvresize -L 3G /dev/vgtest/lv2
+  Extending logical volume lv2 to 3.00 GiB
+  Logical volume lv2 successfully resized
+[root@rhel6 ~]# lvs
+  LV       VG       Attr       LSize   Pool Origin Data%  Move Log Cpy%Sync Convert
+  LogVol00 vg_rhel6 -wi-ao---- 400.00m                                             
+  LogVol01 vg_rhel6 -wi-ao----  17.12g                                             
+  lv1      vgtest   -wi-ao----   2.10g                                             
+  lv2      vgtest   -wi-ao----   3.00g                                             
+[root@rhel6 ~]# df -h
+Filesystem                     Size  Used Avail Use% Mounted on
+/dev/mapper/vg_rhel6-LogVol01   17G  2.9G   14G  18% /
+tmpfs                          499M   72K  499M   1% /dev/shm
+/dev/vda1                      485M   39M  421M   9% /boot
+/dev/mapper/vg_rhel6-LogVol00  388M   11M  358M   3% /home
+/dev/mapper/vgtest-lv1         2.1G  7.0M  2.0G   1% /tmp/lvfile1
+/dev/mapper/vgtest-lv2          97M  5.6M   87M   7% /tmp/lvfile2
+[root@rhel6 ~]# resize2fs /dev/mapper/vgtest-lv2
+resize2fs 1.41.12 (17-May-2010)
+Filesystem at /dev/mapper/vgtest-lv2 is mounted on /tmp/lvfile2; on-line resizing required
+old desc_blocks = 1, new_desc_blocks = 12
+Performing an on-line resize of /dev/mapper/vgtest-lv2 to 3145728 (1k) blocks.
+The filesystem on /dev/mapper/vgtest-lv2 is now 3145728 blocks long.
+
+[root@rhel6 ~]# df -h
+Filesystem                     Size  Used Avail Use% Mounted on
+/dev/mapper/vg_rhel6-LogVol01   17G  2.9G   14G  18% /
+tmpfs                          499M   72K  499M   1% /dev/shm
+/dev/vda1                      485M   39M  421M   9% /boot
+/dev/mapper/vg_rhel6-LogVol00  388M   11M  358M   3% /home
+/dev/mapper/vgtest-lv1         2.1G  7.0M  2.0G   1% /tmp/lvfile1
+/dev/mapper/vgtest-lv2         3.0G  7.2M  2.8G   1% /tmp/lvfile2
+
+=============================================================================
+缩小vg
+注意：
+1.文件系统在挂载的情况下不能缩小
+2.xfs文件系统不能缩小
+3.先缩小文件系统，再缩小lv
+～～～～～～～～～～～～～～～～～～～～～～～～～
+步骤：
+	1.卸载文件系统	umount /tmp/lvfile1
+	2.缩小文件系统	resize2fs /dev/vgtest/lv1 1G
+	4.缩小lv	lvresize -L 1G /dev/vgtest/lv1
+	5.查看lv的大小	lvs
+	6.挂载文件系统	mount /dev/vgtest/lv1 /tmp/lvfile1
+	查看文件系统的大小	df -h
+	7.查看vg的大小	
+
+
+---------------------------------------------------------
+课堂练习
+4.如果现在/tmp/lvfile1觉得空间太大了，希望缩小到1G，怎么做？
+
+[root@rhel6 ~]# umount /tmp/lvfile1
+[root@rhel6 ~]# mount
+/dev/mapper/vg_rhel6-LogVol01 on / type ext4 (rw)
+proc on /proc type proc (rw)
+sysfs on /sys type sysfs (rw)
+devpts on /dev/pts type devpts (rw,gid=5,mode=620)
+tmpfs on /dev/shm type tmpfs (rw,rootcontext="system_u:object_r:tmpfs_t:s0")
+/dev/vda1 on /boot type ext4 (rw)
+/dev/mapper/vg_rhel6-LogVol00 on /home type ext4 (rw)
+none on /proc/sys/fs/binfmt_misc type binfmt_misc (rw)
+/dev/mapper/vgtest-lv2 on /tmp/lvfile2 type ext4 (rw)
+[root@rhel6 ~]# resize2fs /dev/vgtest/lv1 1G
+resize2fs 1.41.12 (17-May-2010)
+Please run 'e2fsck -f /dev/vgtest/lv1' first.
+
+[root@rhel6 ~]# e2fsck -f /dev/vgtest/lv1
+e2fsck 1.41.12 (17-May-2010)
+Pass 1: Checking inodes, blocks, and sizes
+Pass 2: Checking directory structure
+Pass 3: Checking directory connectivity
+Pass 4: Checking reference counts
+Pass 5: Checking group summary information
+/dev/vgtest/lv1: 11/531544 files (9.1% non-contiguous), 74188/2199552 blocks
+[root@rhel6 ~]# resize2fs /dev/vgtest/lv1 1G
+resize2fs 1.41.12 (17-May-2010)
+Resizing the filesystem on /dev/vgtest/lv1 to 1048576 (1k) blocks.
+The filesystem on /dev/vgtest/lv1 is now 1048576 blocks long.
+
+[root@rhel6 ~]# lvresize -L 1G /dev/vgtest/lv1
+  WARNING: Reducing active logical volume to 1.00 GiB
+  THIS MAY DESTROY YOUR DATA (filesystem etc.)
+Do you really want to reduce lv1? [y/n]: y
+  Reducing logical volume lv1 to 1.00 GiB
+  Logical volume lv1 successfully resized
+[root@rhel6 ~]# lvs
+  LV       VG       Attr       LSize   Pool Origin Data%  Move Log Cpy%Sync Convert
+  LogVol00 vg_rhel6 -wi-ao---- 400.00m                                             
+  LogVol01 vg_rhel6 -wi-ao----  17.12g                                             
+  lv1      vgtest   -wi-a-----   1.00g                                             
+  lv2      vgtest   -wi-ao----   3.00g                                             
+[root@rhel6 ~]# mount /dev/vgtest/lv1 /tmp/lvfile1
+[root@rhel6 ~]# df -h
+Filesystem                     Size  Used Avail Use% Mounted on
+/dev/mapper/vg_rhel6-LogVol01   17G  2.9G   14G  18% /
+tmpfs                          499M   72K  499M   1% /dev/shm
+/dev/vda1                      485M   39M  421M   9% /boot
+/dev/mapper/vg_rhel6-LogVol00  388M   11M  358M   3% /home
+/dev/mapper/vgtest-lv2         3.0G  7.2M  2.8G   1% /tmp/lvfile2
+/dev/mapper/vgtest-lv1         993M  6.8M  936M   1% /tmp/lvfile1
+
+
+
+
+
+
+
+5.如果现在/tmp/lvfile1不需要用了，怎么做？
+
+1.卸载 	umount /tmp/lvfile1
+2.移除	lvremove /dev/vgtest/lv1
+
+[root@rhel6 ~]# lvremove /dev/vgtest/lv1
+Do you really want to remove active logical volume lv1? [y/n]: y
+  Logical volume "lv1" successfully removed
+[root@rhel6 ~]# lvs
+  LV       VG       Attr       LSize   Pool Origin Data%  Move Log Cpy%Sync Convert
+  LogVol00 vg_rhel6 -wi-ao---- 400.00m                                             
+  LogVol01 vg_rhel6 -wi-ao----  17.12g                                             
+  lv2      vgtest   -wi-ao----   3.00g                                             
+[root@rhel6 ~]# vgs
+  VG       #PV #LV #SN Attr   VSize  VFree
+  vg_rhel6   1   2   0 wz--n- 17.51g    0 
+  vgtest     4   1   0 wz--n-  5.98g 2.98g
+
+
+
+
+
+6.删除vg组中的所有lv，删除该vg，删除所有pv。
+lvremove
+vgremove
+pvremove
+----------------------------------------------------------------
+
+快照
+lvcreate -s -n snap1 -L 1G /dev/vgtest/lv1
+
+================================================
+ps：如果创建的分区没有生效，那么试一试 partx -a /dev/vdb
+ 或者重新启动reboot
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

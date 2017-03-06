@@ -1,0 +1,456 @@
+day3 2016.07.20 文件和目录
+
+#Linux 一切皆文件
+1.FHS 文件系统分层标准
+	shareable	unshareable
+	共享的		不共享的
+static  /usr /opt	/etc /boot
+静态的
+variable/var/mail	/var/run
+可变的 /var/spool/news   /var/lock
+
+没有系统管理员的参与，他能自己去变更的目录
+
+
+ 
+ 
+ 
+ 
+ 
+=======================================
+lrwxrwxrwx.   1 root root    7 Jul  2  2015 bin -> usr/bin 一般用户可以使用的可执行文件
+dr-xr-xr-x.   3 root root 4096 Jul  2  2015 boot		开机启动需要的文件
+drwxr-xr-x.  19 root root 3060 Jul 20 10:03 dev			设备文件
+drwxr-xr-x. 132 root root 8192 Jul 20 10:03 etc			配置文件
+drwxr-xr-x.  12 root root 4096 Jul 19 14:10 home		普通用户的家目录
+lrwxrwxrwx.   1 root root    7 Jul  2  2015 lib -> usr/lib	
+lrwxrwxrwx.   1 root root    9 Jul  2  2015 lib64 -> usr/lib64	库和函数
+drwxr-xr-x.   2 root root    6 Mar 13  2014 media		多媒体挂接设备
+drwxr-xr-x.   2 root root    6 Mar 13  2014 mnt			挂接设备
+drwxr-xr-x.   3 root root   15 Jul  2  2015 opt			第三方软件存放
+dr-xr-xr-x. 140 root root    0 Jul 20 10:03 proc		虚拟文件系统，跟内核相关的
+dr-xr-x---.  17 root root 4096 Jul 19 20:15 root		root用户的家目录
+drwxr-xr-x.  34 root root 1120 Jul 20 10:03 run			进程
+lrwxrwxrwx.   1 root root    8 Jul  2  2015 sbin -> usr/sbin	超级用户使用的命令
+drwxr-xr-x.   2 root root    6 Mar 13  2014 srv			网络服务存放数据
+dr-xr-xr-x.  13 root root    0 Jul 20 10:03 sys			虚拟文件系统，与系统相关的
+drwxrwxrwt.  13 root root 4096 Jul 20 10:23 tmp			共享目录
+drwxr-xr-x.  13 root root 4096 Jul  2  2015 usr			用户自己安装的程序
+drwxr-xr-x.  22 root root 4096 Jul 20 10:03 var			存放应用程序的数据文件的
+====================================
+重点要熟悉的目录
+/etc 
+/var
+/tmp
+/home
+===========================================================
+目录树
+目录名称严格的区分大小写并且名称中不得包含反斜杠 (/) 。
+
+------------------------------------------------------------------------------
+文件和目录的属性
+lrwxrwxrwx.   1 root root    7 Jul  2  2015 bin -> usr/bin
+dr-xr-xr-x.   3 root root 4096 Jul  2  2015 boot
+drwxr-xr-x.  19 root root 3060 Jul 20 10:03 dev
+drwxr-xr-x. 132 root root 8192 Jul 20 10:03 etc
+drwxr-xr-x.  12 root root 4096 Jul 19 14:10 home
+lrwxrwxrwx.   1 root root    7 Jul  2  2015 lib -> usr/lib
+lrwxrwxrwx.   1 root root    9 Jul  2  2015 lib64 -> usr/lib64
+drwxr-xr-x.   2 root root    6 Mar 13  2014 media
+drwxr-xr-x.   2 root root    6 Mar 13  2014 mnt
+drwxr-xr-x.   3 root root   15 Jul  2  2015 opt
+dr-xr-xr-x. 140 root root    0 Jul 20 10:03 proc
+dr-xr-x---.  17 root root 4096 Jul 19 20:15 root
+drwxr-xr-x.  34 root root 1120 Jul 20 10:03 run
+lrwxrwxrwx.   1 root root    8 Jul  2  2015 sbin -> usr/sbin
+drwxr-xr-x.   2 root root    6 Mar 13  2014 srv
+dr-xr-xr-x.  13 root root    0 Jul 20 10:03 sys
+drwxrwxrwt.  13 root root 4096 Jul 20 10:23 tmp
+drwxr-xr-x.  13 root root 4096 Jul  2  2015 usr
+drwxr-xr-x.  22 root root 4096 Jul 20 10:03 var
+
+-rw-r--r--. 1 root root   51 Jul 18 16:07 b
+
+---------------------------------------------
+#1 
+d 
+--普通文件 
+d-目录 
+l-链接 
+-------不要求----高级课程
+b: 块设备文件, c: 字符设备文件, p: 管道文件
+
+#2
+rwxr-xr-x.
+	文件	目录
+r	读	读（目录中的文件或目录）
+w	写  	写（添加、修改、删除）
+x	执行	进入（）
+
+#3
+目录	数字 	代表该目录下有多少文件或目录
+文件	数字	代表的是该文件的硬链接
+
+#4
+root root
+所属者 所属组
+
+#5
+4096	文件的大小
+
+#6
+Jul 20 10:03 时间 文件最近一次修改的时间
+
+#7
+var 	文件和目录的名称
+
+--------------------------------------------------------------------
+
+=====================================================================================
+rwxr-xr-x 
+#1 rwx 代表所属者拥有的权限
+#2 r-x 代表所属组拥有的权限
+#3 r-x 代表其他人拥有的权限
+
+
+drwxr-xr-x. 2 root root 6 Jul 20 11:12 justice
+
+chown 
+1.修改所属者
+[root@rhel7 tmp]# chown superman justice
+[root@rhel7 tmp]# ll
+total 0
+drwxr-xr-x. 2 superman root 6 Jul 20 11:12 justice
+2.修改目录以及目录底下所有文件或目录
+-R 递归修改所属者权限
+[root@rhel7 tmp]# chown -R superman justice
+[root@rhel7 tmp]# ll justice
+total 0
+-rw-r--r--. 1 superman root 0 Jul 20 11:19 file1
+-rw-r--r--. 1 superman root 0 Jul 20 11:19 file2
+-rw-r--r--. 1 superman root 0 Jul 20 11:19 file3
+-rw-r--r--. 1 superman root 0 Jul 20 11:19 file4
+3.修改justice目录以及目录下所有文件，所属者：superman，所属组：justice
+[root@rhel7 tmp]# chown -R superman:justice justice
+[root@rhel7 tmp]# ll justice
+total 0
+-rw-r--r--. 1 superman justice 0 Jul 20 11:19 file1
+-rw-r--r--. 1 superman justice 0 Jul 20 11:19 file2
+-rw-r--r--. 1 superman justice 0 Jul 20 11:19 file3
+-rw-r--r--. 1 superman justice 0 Jul 20 11:19 file4
+[root@rhel7 tmp]# ll justice -d
+drwxr-xr-x. 2 superman justice 54 Jul 20 11:19 justice
+------------------------------------------------------------
+课堂练习题：
+1.root用户创建目录/tmp/justice/，并在/tmp/justice/目录下新建文件file{1..4}
+2.root用户修改目录/tmp/justice/的所属者和所属组，修改为所属者：superman，所属组：justice
+3.superman登陆后进入/tmp/justice/目录，查看该目录下的文件属性；修改file1文件,echo I am superman > /tmp/justice/file1;修改后查看file1的内容
+4.batman登陆后进入/tmp/justice/目录,查看该目录下的文件属性；查看file1的内容；尝试去修改file1【echo batman was here >> file1】将会被告知没有权限。
+
+==============================================
+一般权限UGO
+字符表示方法：rwx
+数字表示方法：421
+rwxrwxrwx
+777
+
+rw-rw-rw-
+666
+---------
+000
+
+chmod 
+1.通过数字来修改ugo权限
+
+[superman@rhel7 tmp]$ ll justice/file1
+-rw-r--r--. 1 superman justice 14 Jul 20 11:27 justice/file1
+[superman@rhel7 tmp]$ 644--->rw-rw-r--664^C
+[superman@rhel7 tmp]$ chmod 664 justice/file1
+[superman@rhel7 tmp]$ ll justice/file1
+-rw-rw-r--. 1 superman justice 14 Jul 20 11:27 justice/file1
+[batman@rhel7 justice]$ echo batman was here >> file1
+[batman@rhel7 justice]$ cat file1
+I am superman
+batman was here
+
+3.通过字符来修改
+[u    	g 	o 	a]
+所属者  所属组 	其他用户 所有
+
++ - =
+
+rwx
+
+
+[superman@rhel7 tmp]$ chmod g-w justice/file1
+[superman@rhel7 tmp]$ ll justice/file1
+-rw-r--r--. 1 superman justice 30 Jul 20 13:45 justice/file1
+[superman@rhel7 tmp]$ chmod u=rwx justice/file1
+[superman@rhel7 tmp]$ ll justice/file1
+-rwxr--r--. 1 superman justice 30 Jul 20 13:45 justice/file1
+[superman@rhel7 tmp]$ chmod u=rw,g=x,o=rw justice/file1
+[superman@rhel7 tmp]$ ll justice/file1
+-rw---xrw-. 1 superman justice 30 Jul 20 13:45 justice/file
+
+---------------------------------------------------------
+课堂练习题：(需要先将第二天的用户和组建立好)
+1和2两题不要修改所属组和所属者。
+1.为了让batman能够修改/tmp/justice/file1,root用户或者superman用户需要修改/tmp/justice/file1的ugo权限。
+2.为了让leo也能够修改/tmp/justice/file1，root用户或者superman用户需要修改/tmp/justice/file1的ugo权限。
+3.root用户在/tmp/目录下新建七个目录/tmp/ninja{1..7}
+1）在这七个目录下分别创建file1和file2；
+2）将该7个目录的拥有者修改为leo用户；
+3）针对这7个目录的leo用户分别设置数字为1到7的权限。
+	100 200 300 400 500 600 700
+	--x -w-	-wx r-- r-x rw- rwx
+切换成leo用户
+1）分别针对这七个目录/tmp/ninja{1..7}执行以下命令：
+ls /tmp/ninja{x}/file1
+ls -l /tmp/ninja{x}/
+cd /tmp/ninja{x}/
+touch /tmp/ninja{x}/file3
+rm /tmp/ninja{x}/file2
+chmod 777 /tmp/ninja{x}/file1
+2）并总结。
+
+
+
+
+[root@rhel7 tmp]# ll -d /tmp/ninja*
+d--x------. 2 leo root 30 Jul 20 14:33 /tmp/ninja1
+d-w-------. 2 leo root 30 Jul 20 14:33 /tmp/ninja2
+d-wx------. 2 leo root 30 Jul 20 14:33 /tmp/ninja3
+dr--------. 2 leo root 30 Jul 20 14:33 /tmp/ninja4
+dr-x------. 2 leo root 30 Jul 20 14:33 /tmp/ninja5
+drw-------. 2 leo root 30 Jul 20 14:33 /tmp/ninja6
+drwx------. 2 leo root 30 Jul 20 14:33 /tmp/ninja7
+
+[leo@rhel7 ~]$ ll /tmp/ninja{1..7}/
+ls: cannot open directory /tmp/ninja1/: Permission denied
+ls: cannot open directory /tmp/ninja2/: Permission denied
+ls: cannot open directory /tmp/ninja3/: Permission denied
+/tmp/ninja4/:
+ls: cannot access /tmp/ninja4/file1: Permission denied
+ls: cannot access /tmp/ninja4/file2: Permission denied
+total 0
+?????????? ? ? ? ?            ? file1
+?????????? ? ? ? ?            ? file2
+
+/tmp/ninja5/:
+total 0
+-rw-r--r--. 1 root root 0 Jul 20 14:48 file1
+-rw-r--r--. 1 root root 0 Jul 20 14:48 file2
+
+/tmp/ninja6/:
+ls: cannot access /tmp/ninja6/file1: Permission denied
+ls: cannot access /tmp/ninja6/file2: Permission denied
+total 0
+?????????? ? ? ? ?            ? file1
+?????????? ? ? ? ?            ? file2
+
+/tmp/ninja7/:
+total 0
+-rw-r--r--. 1 root root 0 Jul 20 14:48 file1
+-rw-r--r--. 1 root root 0 Jul 20 14:48 file2
+[leo@rhel7 ~]$ ll
+total 0
+----rw-rw-. 1 leo leo 0 Jul 20 15:02 test1
+-rw-------. 1 leo leo 0 Jul 20 15:02 test2
+对于目录
+r	可以看到目录下文件名
+rx	可以看到目录下文件的详细信息
+x 	就能看到目录下的文件名，必须是你事先知道有那个文件在 ls
+	进入目录的权限 cd
+wx	对目录执行写操作：增删改   
+修改以存在的文件1.目录的权限；2.文件本身的权限
+
+----------------------------------------------------------------------
+umask			文件的最大权限 	文件默认	目录	默认权限
+root 		022 	666		644	777	755
+普通用户  	002	666		664	777	775
+
+umask 600 
+umask 066
+临时生效
+------------------------------------------
+特殊权限 suid\sgid\sticky
+SUID 4
+范围 : 二进制的可执行的文件
+作用 : 临时拥有所有者的权限
+SGID 2
+范围 : 目录或者拥有可执行权限的文件
+作用 : 继承目录所属组;临时拥有所属组的权限
+SBIT ( STICKY )1
+范围 : 目录
+作用 : 只有 root 用户和文件拥有者有权删除目录中的文件。
+
+[root@rhel7 ~]# which passwd
+/usr/bin/passwd
+[root@rhel7 ~]# ll /usr/bin/passwd
+-rwsr-xr-x. 1 root root 27832 Jan 30  2014 /usr/bin/passwd
+[root@rhel7 ~]# ll /etc/shadow
+----------. 1 root root 2253 Jul 20 11:10 /etc/shadow
+
+[root@rhel7 ~]# cd /tmp
+[root@rhel7 tmp]# mkdir mm
+[root@rhel7 tmp]# ll mm -d
+drwxr-xr-x. 2 root root 6 Jul 20 15:23 mm
+[root@rhel7 tmp]# chgrp justice mm
+[root@rhel7 tmp]# ll mm -d
+drwxr-xr-x. 2 root justice 6 Jul 20 15:23 mm
+[root@rhel7 tmp]# mkdir mm/aa
+[root@rhel7 tmp]# ll mm/aa -d
+drwxr-xr-x. 2 root root 6 Jul 20 15:24 mm/aa
+[root@rhel7 tmp]# chmod 2755 mm
+[root@rhel7 tmp]# ll mm -d
+drwxr-sr-x. 3 root justice 15 Jul 20 15:24 mm
+[root@rhel7 tmp]# mkdir mm/bb
+[root@rhel7 tmp]# ll mm/bb -d
+drwxr-sr-x. 2 root justice 6 Jul 20 15:26 mm/bb
+
+[root@rhel7 tmp]# ll -d /tmp
+drwxrwxrwt. 19 root root 4096 Jul 20 15:59 /tmp
+
+
+
+课堂实验：
+1.查看passwd的权限，说出他的特殊权限
+2.用户之间可以聊天，write，查看该命令的属性;wall广播
+3.在/tmp/下创建目录share,share的所属组为superman,要求，所有属于superman组的成员都能进入目录读写，但是只有root用户和文件所属者能够删除自己的文件。
+
+=====================================================================
+ACL 文件访问控制列表
+ACL:Access Control List 缩写 ,UGO 的 rwx 权限以外的细部权限设置。
+
+setfacl 命令用于增加或者修改 ACL 规则
+格式为: ” setfacl [ 参数 ] 文件 ” 。
+setfacl [-bkRd] [{-m|-x} acl 参数 ] 目标文件名
+选项与参数 :
+-m : 设置 acl 参数
+-x : 删除 acl 参数
+-b : 删除所有 acl 参数
+-R : 递归设置 acl 参数
+-d : 设置『预设 acl 参数』只对目录有效 , 在该目录新建的数据会引用
+命令格式 :
+『 u:[ 使用者账号列表 ]:[ rwx] 』 <= = 针对特定用户
+『 g:[ 群组列表 ]:[rwx] 』 <= = 针对特定用户组
+『 d:[ ug]: 使用者列表 :[ rwx] 』 针对预设权限 , 属性将继承到次目录
+
+[root@rhel7 tmp]# setfacl -m u:leo:rw justice/
+[root@rhel7 tmp]# setfacl -m u:student:x justice/
+[root@rhel7 tmp]# setfacl -m g:ninja:rwx justice/
+
+[root@rhel7 tmp]# setfacl -b justice/
+[root@rhel7 tmp]# getfacl justice/
+# file: justice/
+# owner: superman
+# group: justice
+user::rwx
+group::r-x
+other::r-x
+
+
+
+
+
+getfacl 命令用于显示文件的 ACL 规则
+格式为: ” getfacl 文件 ” 。
+
+课堂练习：
+1.创建目录/tmp/acl/,所属者：root，所属组：root；
+2.要求让batman对该目录，能够拥有r-x的权限；
+3.要求让leo对该目录，能够拥有-wx的权限；
+4.要求让don对该目录，能够拥有r--的权限；
+5.root用户在该目录下创建了新的目录test，要求新目录能够继承/tmp/acl/的权限。
+6.删除目录/tmp/acl/以及该目录下的所有文件的acl权限。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,256 @@
+day10 20160729
+-------------
+复习昨日内容
+1.quota磁盘配额步骤
+1）内核是否支持quota		dmesg | grep quota
+2）软件是否安装			rpm -q quota
+3）要作限制的目录是否支持quota	/mnt/test1---/dev/vdb1 
+				mount -o usrquota,grpquota /dev/vdb1 /mnt/test1
+4）检查该目录			quotacheck -cugm /mnt/test1   ===>quota.user  quota.group
+5）激活该目录的quota		quotaon /mnt/test1
+6）配置该目录的磁盘配额quota	edquota student 用户名
+7）查看该目录的磁盘配额情况		repquota /mnt/test1
+8）测试				student 
+
+2.swap 交换分区
+
+1.查看当前系统内存中swap分区的大小	free -m
+2.划分swap分区			t L 82		
+3.格式化swap分区			mkswap /dev/vdb6		
+4.使用swap分区			swapon /dev/vdb6
+5.停止使用该swap分区		swapoff /dev/vdb6
+
+3.LVM 逻辑卷管理
+/dev/vdb ----fdisk----mkfs-----mount----/mnt
+/dev/vdb-----fdisk--逻辑曾--mkfs---mount---/mnt
+
+# 制作lv的步骤
+1.制作pv 	pvcreate /dev/vdb1
+		查看pvs pvdisplay
+2.组成vg	vgcreate vgtest /dev/vdb1 /dev/vdb2 /dev/vdb3
+		查看vgs	vgdisplay
+3.划分lv	lvcreate -L 100M -n lv1 vgtest
+		查看lvs	lvdisplay
+# 拓展lv和文件系统的步骤
+## vg足够
+## vg不够
+# 缩小文件系统和lv的步骤
+# 删除lv，删除vg，删除pv
+# 从vg中减少pv
+==================================================================================
+今日内容---开机启动流程
+
+操作系统 rhel6
+-----------------------
+# 开机启动流程讲解
+开机通电
+关键人	位置	作用
+BIOS	主板	找到第一个可以开机的装置 （硬盘、u盘、网络、cd-rom）
+grub	硬盘MBR	开机引导，找到内核			/boot/grub/grub.conf
+kernel	(hd0,0)	加载模块，驱动，激活硬件		vmlinuz-2.6.32-431.el6.x86_64
+	第一块硬盘的第一个分区
+init		/etc/inittab runlevel 	系统运行的等级X
+		/etc/rc.d/rc.sysinit	初始化运行环境
+		/etc/rc.d/rcX.d/	X等级启动的服务
+		/etc/rc.d/rc.local	个性化配置
+login	登录界面
+
+-----------------------------------------------------------------
+# 名词解释
+1. BIOS 一个写入到主板上的一个软件程序,在开机的时候,计算机系统会主动执行第一个程序
+2. HD 硬盘
+3. MBR 主要启动记录区(Master Boot Record)该硬盘里的0号磁道的第一个扇区 512 bytes
+4. boot loader 开机管理程序,可读取核心文件并执行 446 bytes
+5. DPT 磁盘分割表(disk partition table)记录整颗硬盘分割状态 64 bytes
+------------------------------------------------------------
+# 流程说明
+1. 加载 BIOS 的硬件信息并自我测试 , 依据设定取得第一个可开机的装置 ;
+2. 读取并执行第一个开机装置内 MBR 的 boot Loader ( grub, spfdisk 等程序 );
+3. 依据 boot loader 的设定加载 Kernel
+4. Kernel 会开始侦测硬件并加载驱动程序 ;
+5. 在硬件驱动成功后 ,Kernel 会主动呼叫 init 程序
+6. init 会取得 run-level 信息 ;
+7. init 执行 /etc/rc.d/rc.sysinit 档案来准备软件执行的作业环境 ( 如网络、时区等 );
+8. init 执行 run-level 的各个服务的启动 (script 方式 );
+9. init 执行 /etc/rc.d/rc.local 档案 ;
+10. init 执行终端仿真程序 mingetty 来启动 login 程序 ,
+11. 最后等待用户登入
+
+------------------------------------------------------------
+# runlevel 运行等级
+[root@rhel6 ~]# cat /etc/inittab
+# Default runlevel. The runlevels used are:
+# 0 - halt (Do NOT set initdefault to this) 系统停止	
+# 1 - Single user mode	单用户模式
+# 2 - Multiuser, without NFS (The same as 3, if you do not have networking) 本地多用户，无图形化界面，无网络
+# 3 - Full multiuser mode 多用户模式，有网络
+# 4 - unused	未使用
+# 5 - X11	图形化界面，多用户，有网络
+# 6 - reboot (Do NOT set initdefault to this) 重启
+
+---------------------------------------------------------
+破解服务器的root密码
+rhel6
+
+
+
+
+rhel7
+========================================================================
+内核
+1.查看当前系统内核版本---机器名
+uname -r
+[root@rhel6 ~]# uname -r
+2.6.32-431.el6.x86_64
+[root@rhel6 ~]# uname -a
+Linux rhel6 2.6.32-431.el6.x86_64 #1 SMP Sun Nov 10 22:19:54 EST 2013 x86_64 x86_64 x86_64 GNU/Linux
+
+2.内核模块
+[root@rhel6 ~]# cd /lib/modules/$(uname -r)
+[root@rhel6 ~]# cd kernel
+[root@rhel6 kernel]# ls
+arch  crypto  drivers  fs  kernel  lib  mm  net  sound
+
+3.模块的相依性
+记录的位置	/lib/modules/$(uname -r)/modules.dep
+模块的命令	以.ko结尾
+==========================================================
+实验：
+1.加载新模块
+1)将模块放到	/lib/modules/$(uname -r)/kernel/net/nettest.ko
+2)更新依赖关系	depmod	
+3)加载模块	modprobe nettest
+4)查看当前内核已加载的模块 lsmod|grep nettest.ko
+5)卸载模块	rmmod nettest
+
+------------------------------------------
+[root@rhel6 kernel]# touch net/nettest.ko
+[root@rhel6 kernel]# depmod 
+WARNING: Can't read module /lib/modules/2.6.32-431.el6.x86_64/kernel/net/nettest.ko: Exec format error
+[root@rhel6 kernel]# lsmod|grep dnet
+[root@rhel6 kernel]# modinfo dnet
+filename:       /lib/modules/2.6.32-431.el6.x86_64/kernel/drivers/net/dnet.ko
+author:         Ilya Yanok <yanok@emcraft.com>, Matteo Vit <matteo.vit@dave.eu>
+description:    Dave DNET Ethernet driver
+license:        GPL
+srcversion:     9D532980E04E93088A9DFC1
+depends:        
+vermagic:       2.6.32-431.el6.x86_64 SMP mod_unload modversions 
+[root@rhel6 kernel]# modprobe dnet
+[root@rhel6 kernel]# lsmod|grep dnet
+dnet                   16103  0 
+[root@rhel6 kernel]# rmmod dnet
+[root@rhel6 kernel]# lsmod|grep dnet	
+================================================================
+升级内核版本
+Linux 内核官网 https://www.kernel.org/ 提供的是源码,需要编译使用。
+Linux 内核版本有两种 : 稳定版和开发版 ,Linux 内核版本号由 3 个数字组成 :r.x.y
+r: 主版本号
+x: 次版本号 , 偶数表示稳定版本 ; 奇数表示开发中版本。
+y: 修订版本号 , 表示修改的次数
+去 http://www.kernel.org 首页 , 可以看到有 stable, longterm 等版本 ,longterm 是比
+stable 更稳定的版本 , 会长时间更新。
+源码编译不做要求。
+
+
+
+rhel6
+1.下载软件，并安装
+2.修改grub配置文件
+default=0
+timeout=5
+splashimage=(hd0,0)/grub/splash.xpm.gz
+hiddenmenu
+title Red Hat Enterprise Linux Server (3.10.102-1.el6.elrepo.x86_64)
+        root (hd0,0)
+        kernel /vmlinuz-3.10.102-1.el6.elrepo.x86_64 ro root=/dev/mapper/vg_rhel6-LogVol01 rd_NO_LUKS LANG=en_US.UTF-8 rd_NO_MD SYSFONT=latarcyrheb-sun16  KEYBOARDTYPE=pc KEYTABLE=us rd_LVM_LV=vg_rhel6/LogVol01 rd_NO_DM rhgb quiet
+        initrd initramfs-3.10.102-1.el6.elrepo.x86_64.img
+----------------------------------------------------------------------------------
+
+rhel7
+
+1.配置yum源
+http://content.example.com/rhel7.0/x86_64/errata/
+2.安装新内核，不要将原有的卸载
+yum install -y kernel
+3.查看 /boot/grub2/grub.cfg
+4.reboot
+5.uname -r
+
+
+================================================================================
+管理网络的服务
+rhel5 network
+rhel6 network NetworkManager
+rhel7 NetworkManager network
+#NetworkManager的客户端nmcli
+添加连接
+nmcli connection add con-name aa ifname eth0 type ethernet ip4 172.25.0.40/24 gw4 1
+72.25.0.254
+启动连接
+nmcli connection up aa
+关闭连接
+nmcli connection down aa
+
+观察/etc/sysconfig/network-scripts/目录中文件的变化
+
+=============================================================================
+
+如何监控系统
+
+# cpu	
+uptime
+[root@rhel7 ~]# uptime
+ 03:59:11 up 34 min,  3 users,  load average: 0.00, 0.01, 0.05
+
+# 内存
+free
+[root@rhel7 ~]# free -h
+             total       used       free     shared    buffers     cached
+Mem:          994M       806M       187M       7.1M       1.4M       339M
+-/+ buffers/cache:       465M       528M
+Swap:         2.0G       100K       2.0G
+
+# 硬盘
+df -h 
+[root@rhel7 ~]# df -h
+Filesystem                  Size  Used Avail Use% Mounted on
+/dev/mapper/vg--rhel7-root   18G  3.4G   14G  20% /
+devtmpfs                    489M     0  489M   0% /dev
+tmpfs                       498M   80K  497M   1% /dev/shm
+tmpfs                       498M  7.0M  491M   2% /run
+tmpfs                       498M     0  498M   0% /sys/fs/cgroup
+/dev/vda1                   497M  126M  372M  26% /boot
+/dev/mapper/vg--rhel7-home  497M   26M  472M   6% /home
+
+# 网络
+## ip地址的查看
+[root@rhel7 ~]# ifconfig
+[root@rhel7 ~]# ip addr
+## 网关查看
+[root@rhel7 ~]# route -n
+Kernel IP routing table
+Destination     Gateway         Genmask         Flags Metric Ref    Use Iface
+0.0.0.0         172.25.0.254    0.0.0.0         UG    1024   0        0 eth0
+172.25.0.0      0.0.0.0         255.255.255.0   U     0      0        0 eth0
+172.25.253.254  172.25.0.254    255.255.255.255 UGH   1      0        0 eth0
+## rhel7 网络的设置
+	NetworkManager
+
+	图形化界面 nmtui
+	命令方式
+		nmcli connection add
+		nmcli connection show
+		nmcli connection up
+		nmcli connection down
+
+------------------------------------------------------------------------------------
+
+
+
+
+
+
+
+
+

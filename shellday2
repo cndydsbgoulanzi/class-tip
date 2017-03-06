@@ -1,0 +1,268 @@
+shell day2
+------------------
+复习
+变量的设定、读取（删除、替换）、取消
+变量的分类-本地变量和环境变量env set export
+特殊符号
+
+有n石子，谁拿到最后一个石子谁赢，用户可以指定一共由多少个石子，每次最多可以拿的石子数是可以给用户指定的
+-------------------------------------------------------
+# for 语法格式
+	for 变量 in 取值范围
+	do
+		CMD
+	done
+# 取值范围
+	以空格分割	for i in 1 2 3
+			for i in 5 7 10
+			for i in a b c
+			for i in 10 11
+			do 
+				ssh root@172.25.0.$i "yum install -y wget"
+			done
+
+			for i in xx uu
+			do 
+				ls /tmp/
+			done
+
+
+	以{}罗列		{1..10}
+	可以使用seq	$(seq 1 10)==>1 2 3 4 5 6 7 8 9 10
+			`seq 1 10`
+			seq 1 2 10==>1 3 5 7 9 
+			seq 10 -1 1==>10 9 8 7 6 5 4 3 2 1
+# 命令行方式 
+	for i in {1..10};do echo $i;done
+
+# 课堂练习
+	4.画斜线正反
+*
+ *
+  *
+   *
+
+
+
+   *
+  *
+ *
+*
+	5.达到如下效果
+    *
+   ***
+  *****
+ *******
+*********
+	6.写一个9*9乘法表
+	7.画一个平行四边形
+长9位宽8行
+*********
+ *       *
+  *       *
+   *       *
+    *       *
+     *       *
+      *       *
+       *********
+=============================================================================
+1.统计当前系统一共有多少个用户，并且向每个用户问好，屏幕输出“hello $username,your uid is $uid”
+2.依次向/var/目录下的每个文件问好“hello $file” ,统计一共有多少个文件
+3.输入用户名，当前系统中属于该用户的所有文件都会打印在屏幕上，并且告诉你文件大小超过$size的文件有哪些
+4.计算某个命令执行的时间
+
+1.
+#!/bin/bash
+a=`cat /etc/passwd|wc -l`
+echo "当前系统用户的数量一共是：$a" 
+num=1
+for i in `seq 1 $a`
+do
+	username=`head -n $num /etc/passwd|tail -n 1|cut -d : -f 1 `
+	userid=`head -n $num /etc/passwd |tail -n 1|cut -d : -f 3`
+	num=$(($num+1))
+	echo "hello $username,your uid is $userid"
+	
+done
+
+2.
+#!/bin/bash
+for i in `ls /var/`
+do
+	echo "hello $i"
+done
+num=`ls -l /var/ |wc -l`
+echo /var/目录下一共 $num 个文件
+
+3.
+#!/bin/bash
+read -p "请输入用户名：" name
+read -p "请输入要判断大文件的标准为：" size
+echo 用户$name的文件为:
+find / -user $name 2> /dev/null
+echo ++++++++++++++++++++++++++++++++++++++++
+echo 用户$name的文件中超过$size的文件为
+find / -user $name -size +$size 2> /dev/null
+
+4.
+[root@rhel6 testsh]# cat 4.sh
+#!/bin/bash
+read -p "请输入要计算运行时间的命令:" cmd
+t1=`date +%s`
+$cmd 
+t2=`date +%s`
+t=$(($t2-$t1))
+echo "$cmd 运行的时间为：$t"
+
+----------------------------------------------------------
+# while 语法格式
+	while condition 指的是判断的条件
+	do
+		CMD
+	done
+数字的判断 	字符的判断 	文件的判断
+	-gt 大于 	-z 空 		-d 文件是不是一个目录
+	-ge 大于等于 	=  字符相等 	-f 是不是一个普通文件
+	-lt 小于 	!= 字符不相等 	-e 文件是不是存在
+	-le 小于等于 	-n 非空 	
+	-ne 不等于 	-a 逻辑与 
+	-eq 等于 	-o 逻辑或 
+	
+	注意 ：[ ] 括号两边有空格
+	      判断符号两边有空格
+==============================================================
+1.当什么的时候就做什么,体验无限循环
+touch /tmp/whilefile
+while [ -f /tmp/whilefile ]
+do
+	cat >> /tmp/whilefile << ENDF
+当山峰没有棱角的时候
+当河水不再流
+。。。
+我哈哈ishi
+ENDF
+
+done
+
+2.不满足条件跳出循环
+判断/tmp/whilefile2是否存在，不存在的时候我们去创建
+#!/bin/bash
+while [ ! -e /tmp/whilefile2 ]
+do
+	cat > /tmp/whilefile2 << ENDF
+hello
+ENDF
+
+done
+
+
+-----------------------------------------------------------
+# until 语法格式
+	until condition --> 不满足 condition, 则执行 cmd
+	do
+		CMD
+	done
+--------------------------------------------------------
+# 课堂练习：
+	8.连乘算法 while和until
+#!/bin/bash
+read -p "plz input num:" n
+m=1
+s=1
+while [ $m -le $n ]
+do
+	s=$(($s*$m))
+	m=$(($m+1))
+done
+echo 连乘结果为： $s
+
+	9.要求根据userlist创建用户，要求指定用户名，用户id，用户的附加组及变更用户u密码，若对应用户的附加组不存在，则将附加组创建出来后再根据要求添加用户。
+	userlist文件的格式如下：
+	carol 777 tom uplooking
+	natasha 778 tom uplooking
+	r1 779 tom uplooking
+
+#!/bin/bash
+while read username userid group password
+do
+        groupadd $group &> /dev/null
+        useradd -u $userid -G $group $username &> /dev/null
+        echo $password |passwd --stdin $username &> /dev/null
+        id $username
+done < /root/shell2/whenshell/userlist
+
+
+	10.要求根据userlist创建用户，要求指定用户名，用户id，用户的默认组和附加组及变更用户u密码，若对应用户的附加组不存在，则将附加组创建出来后再根据要求添加用户。
+	[root@rhel6 ~]# cat /tmp/useraddlist1
+	dabao 888 xuexi,it uplooking
+	lucy 889 sales,it uplooking
+	lily 899 pro,aa uplooking
+
+[root@rhel6 whenshell]# cat 7.sh
+#!/bin/bash
+#
+echo "你需要准备一个文件userlist1格式为 
+用户名 uid 初始组,附加组1，附加组2，附加组n 密码"
+ 
+while read username userid group password
+do
+	for i in ${group//,/ } 
+	do
+		groupadd $i &> /dev/null
+	done
+	useradd -u $userid -g ${group%%,*} -G $group $username &> /dev/null
+	echo $password |passwd --stdin $username &> /dev/null
+	id $username
+done < /root/shell2/whenshell/userlist1
+
+[root@rhel6 whenshell]# bash 7.sh
+你需要准备一个文件userlist1格式为 
+用户名 uid 初始组,附加组1，附加组2，附加组n 密码
+uid=888(dabao) gid=782(xuexi) groups=782(xuexi),783(it),784(aa),785(bb)
+uid=889(lucy) gid=786(sales) groups=786(sales),783(it),787(cc),788(dd)
+uid=899(lily) gid=789(pro) groups=789(pro),783(it),784(aa),790(kk)
+
+
+
+=====================
+作业：
+1.完成今天课上的所有练习题目
+2.石子题
+3.创建一个以今天日期为名的目录20160811;
+将/目录下所有以.sh结尾的文件复制到新创建的目录中；
+将该目录打包压缩存到/tmp目录下保存。
+
+#!/bin/bash
+mkdir $(date +%Y%m%d) &> /dev/null
+find / -name "*.sh" -exec cp {} `date +%Y%m%d` \; &> /dev/null
+tar -jcf `date +%Y%m%d`.tar.bz2 `date +%Y%m%d` &> /dev/null
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

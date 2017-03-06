@@ -1,0 +1,197 @@
+day6 vim+bash
+gsettings set org.gnome.settings-daemon.plugins.media-keys max-screencast-length "uint32 0"
+录屏 不限制时间
+ctrl shift alt r
+
+
+vim
+======================================
+模式
+1.normal 	正常模式，退出模式 ESC
+2.command	命令模式，: ? /
+3.insert	插入模式，i
+模式切换
+示例
+1.	vim 【已存在的文件】----编辑该文件
+	vim 【不存在的文件】----创建并编辑
+2.插入文本
+o	在光标下一行插入
+O	在光标上一行插入
+i	在光标所在位置
+a	在光标所在位置的后一位
+A	在光标所在行的末尾
+3.保存退出
+正常模式---命令模式:----wq
+正常模式---ZZ
+放弃编辑并重新载入 :e!
+--------------------------------------
+课堂练习：
+1.复制eth0的配置文件位/tmp/test
+cp /etc/sysconfig/network-scripts/ifcfg-eth0 /tmp/test
+2.使用vim编辑该文件，练习不同模式的切换，尤其是正常变插入模式的几种用法；
+3.练习保存的几种命令，包括保存退出，不保存退出。
+==========================================================================
+vim练习游戏
+vim-adventures.com
+vim大冒险
+一般模式下，退出模式，esc
+
+移动 h j k l 3j--向下移动3行  10l--向右移动10个字符
+删除 x	
+	xxxxxxxxx
+	8x
+删除整行 dd 2dd 10dd 
+
+-------------------
+撤销	u 一次操作的撤销
+	U 一行操作的撤销
+反撤销	ctrl+r
+-----------------------------------
+复制 yy
+粘贴 p
+4yy4jp 复制光标所在的行开始的4行，将光标下移4行并复制
+
+------------------------------------
+gg跳到行首	3gg 跳至第三行
+G 跳到行尾
+---------------------------------------------------
+一般模式---->:set nu 显示行号
+一般模式---->:set nonu 不显示
+搜索
+/关键字 n向下翻页 N向上翻页
+?关键字 
+---------------------------------------
+替换字符
+:s/UNIX/linux 对光标所在行第一个出现的 UNIX 替换成 linux
+:s/UNIX/linux /g 对光标所在行所有 UNIX 都替换成 linux , g 表示全行替换
+:% s/UNIX/linux /g 将全文中的 carol 都替换位 natasha , "%" 指定该命令将作用于所有行上
+
+------------------------------------------
+1.连续插入相同的word
+100个hello
+一般模式 100ihello esc
+
+2.格式
+Tab 8个空格
+1,3left 8
+=========================================================
+=========================================================
+
+bash
+
+1.shell的简介
+	命令解释器，是os和人之间的桥梁。
+	历史 	sh  bash
+	whyshell 效率
+	系统中合法的shell  /etc/shells
+ 
+2.bash功能
+	history
+		命令用法
+		history
+			-c	清空缓存
+			-r  	将~/.bash_history历史命令读入缓存
+			
+			方便的调用	！num
+					!! 调用最近一次的命令
+					!关键字 		
+
+
+		实战	1.你是黑客，窃取别人的历史命令
+			~/.bash_history
+			2.为了防止黑客，你怎么防止一些关键命令被窃取，比如配置用户密码，或者数据库密码等
+		[root@rhel7 ~]# echo "uplooking123"|passwd --stdin superman
+		Changing password for user superman.
+		passwd: all authentication tokens updated successfully.
+
+
+			1）清缓冲
+			2）删除文件
+
+			[root@rhel7 ~]# export HISTCONTROL=ignorespace
+			[root@rhel7 ~]# echo 1
+			1
+			[root@rhel7 ~]# echo 2
+			2
+			[root@rhel7 ~]#  echo 3
+			3
+			[root@rhel7 ~]# history
+			1  HISTCONTROL=ignorespace
+			2  exprot HISTCONTROL=ignorespace
+			3  export HISTCONTROL=ignorespace
+			4  echo 1
+			5  echo 2
+			6  history
+	alias	
+		命令用法
+			alias -p 列出当前系统中的命令别名
+			alias cmd='xxxx' 设置新的命令别名
+				alias mywork='cd /tmp/justice/superman/dir1'
+			unalias cmd
+	
+		实战	1.我的工作路径在/tmp/justice/superman/dir1/，每天登陆的服务器都很累，因为要天天输入cd /tmp/justice/superman/dir1/,有什么办法能够轻松一点呢？让我少输入一点命令呢？
+			2.取消我刚刚设置的别名unalias
+
+	tab补全	
+		命令补全
+		文件补全
+
+	快捷键
+		ctrl+l 清屏幕
+		ctrl+a 行首
+		ctrl+e 行尾
+		ctrl+d 退出
+		ctrl+c 中断
+3.用户shell登陆流程
+	流程中的配置文件的读取顺序
+	/etc/profile		所有用户都会生效
+	/etc/profile.d/*	
+	~/.bash_profile		当前用户
+	~/.bashrc		当前用户
+	/etc/bashrc		所有用户
+	
+	实战1.所有的用户都生效，命令放在哪个文件哪个位置中一定会生效
+	
+	变量1——PATH
+		mysql-proxy
+		mycat
+		/usr/local/mycat/bin/mycat
+		#mycat
+		# export PATH=$PATH:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/root/bin
+
+	变量2——PS1
+		[root@rhel7 tmp]# echo $PS1
+		[\u@\h \W]\$
+
+		# PS1='[\[\e[32m\]#\##\[\e[31m\]\u@\[\e[36m\]\h \w]\$\[\e[m\]'
+
+
+
+
+
+
+
+
+   
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,394 @@
+-----------------------------------------------------------------------------------------	
+# case 语法格式
+	case 取值 in
+	取值 1)
+		CMD1 ;
+		cmd11;
+		cmd12;;
+	取值 2)
+		CMD2 ;;
+	取值 3)
+		CMD3 ;;
+	*)
+		CMD4 ;;
+	esac	
+			* 代表除了以上所有的取值 , 做某一些操作 .
+
+# 课堂练习：
+	11.case
+	echo "input a : ls -a /tmp/"
+	echo "input l : ls -l /tmp/"
+	echo "input *(a,l)": echo "plz input a or l"
+--------------------------------------------------
+#!/bin/bash
+read -p "plz input char:" i
+case $i in
+a)
+	ls -a /tmp ;;
+l)
+	ls -l /tmp;;
+*)
+	echo "plz input a or l!";;
+esac
+-------------------------------------------------
+	echo "input end":end this program
+	当输入end的时候该程序才会停止，否则会一直运行case请你输入
+#!/bin/bash
+until [[ $i = end ]]
+do
+	read -p "xxxx" i
+	case $i in
+	a)
+		ls -a /tmp ;;
+	l)
+		ls -l /tmp;;
+	end)	
+		echo "end this program";;
+	*)
+		echo "plz input a or l!";;
+	esac
+done
+
+=======================================================================
+# continue 语法格式
+	continue 作用于循环语句中 代表跳出这个循环进入下个循环 .
+
+# 课堂练习：
+	12.
+	1）要求输出100以下所有能够被7整除，但不能够被5整除的数字。
+#!/bin/bash
+for i in `seq 1 100`
+do
+	if [ $(($i%7)) -eq 0 ] && [ $(($i%5)) -ne 0 ]
+	then
+		echo $i
+	else
+		continue
+	fi
+done
+	2）要求以一行输出结果
+#!/bin/bash
+for i in `seq 1 100`
+do
+	if [ $(($i%7)) -eq 0 ] && [ $(($i%5)) -ne 0 ]
+	then
+		j="$j $i"
+	else
+		continue
+	fi
+done
+echo $j
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+#!/bin/bash
+for i in `seq 1 100`
+do
+	if [ $(($i%7)) -eq 0 ] && [ $(($i%5)) -ne 0 ]
+	then
+		echo -n "$i "
+	else
+		continue
+	fi
+done
+echo
+
+--------------------------------------------------------------------
+# break 语法格式
+	break 作用于循环语句中 代表直接跳出该循环 .
+# 课堂练习：
+	要求找出系统中属于student用户的一个文件.
+========================================================================
+# shift 语法格式
+	位置参数
+	$1 代表的是输入的第一个参数
+	$2 代表的是输入的第二个参数 ....
+	$0 代表的是 bash 程序本身名
+	$# 代表的是参数的个数
+	${10} 超过的两位的
+	${*}或者${@} 代表将所有位置参数
+	shift 代表移走第一位位置参数 , 由后续的位置参数前移一位 .
+# 课堂练习
+	显示为值参数的值，以及可执行脚本名称，参数的总数
+#!/bin/bash
+echo $1
+echo $2
+echo $3
+echo $0
+echo $#
+
+13.位置参数，判断文件是否存在
+while [ $# -ne 0 ]
+do
+        if [ -e  $1 ]
+        then
+                echo "$1 exits"
+        else
+                echo "$1 does not exit"
+        fi
+        shift
+done
+
+for i in ${*}
+do
+	if [ -e  $i ]
+        then
+                echo "$i exits"
+        else
+                echo "$i does not exit"
+        fi
+done
+===============================================================
+# function 语法格式
+	functname ()
+	{
+	shell commands
+	}
+
+# 函数的调用 函数名
+
+#!/bin/bash
+#批量添加用户
+
+USERADD () 
+{
+while read username userid group password
+do
+        groupadd $group &> /dev/null
+        useradd -u $userid -G $group $username &> /dev/null
+        echo $password |passwd --stdin $username &> /dev/null
+        id $username
+done < /root/shell2/whenshell/userlist
+}
+
+
+
+#每日备份以.sh结尾的文件
+DUMP () {
+mkdir $(date +%Y%m%d) &> /dev/null
+find / -name "*.sh" -exec cp {} `date +%Y%m%d` \; &> /dev/null
+tar -jcf `date +%Y%m%d`.tar.bz2 `date +%Y%m%d` &> /dev/null
+}
+
+#连乘算法
+SS () 
+{
+read -p "plz input num:" n
+m=1
+s=1
+while [ $m -le $n ]
+do
+	s=$(($s*$m))
+	m=$(($m+1))
+done
+echo 连乘结果为： $s
+}
+
+
+read -p "你想执行什么内容，请选择：
+A 批量添加用户
+B 每日备份
+C 连成算法
+" num
+
+case $num in
+A)
+	USERADD;;
+B)
+	DUMP;;
+C)
+	SS;;
+*)	
+	echo "plz input A B C"
+esac
+
+
+------------------------------------------------------------
+14.函数返回值
+Do you like shell? yes or no
+yes I love shell!
+no  I hate shell!
+
+#!/bin/bash
+LOVE_SHELL () {
+case $1 in
+yes)
+        return 0;;
+no)
+        return 1;;
+*)
+        echo "plz input yes or no";;
+esac
+
+}
+
+read -p "Do you like shell? yes or no:" n
+if LOVE_SHELL $n
+then
+        echo "I love shell! "
+else
+        echo "I hate shell!"
+fi
+
+15.创建一个命令booboo，命令用法如下：
+booboo -t 30s 	代表睡30s；即-t后跟时间
+booboo -l /tmp  代表显示某个目录下面的内容和属性以及目录本身的属性
+booboo -r /tmp/file 代表删除某个文件
+booboo --help	代表帮助信息显示该命令的用法
+#!/bin/bash
+
+SLEEP () {
+sleep $1
+}
+
+LS () {
+ls -l $1
+ls -ld $1
+}
+
+RM () {
+rm -rf $1
+}
+
+case $1 in
+-t)
+	SLEEP $2;;
+-l)
+	LS $2;;
+-r)
+	RM $2;;
+--help)
+	echo "-t 睡觉 -l 显示文件属性 -r 删除 --help 帮助";;
+*)
+	echo "booboo [-t,-l,-r,--help]";;
+esac 
+---------------------
+[root@rhel6 shell0812]# chmod a+x booboo
+[root@rhel6 shell0812]# PATH=${PATH}:/root/shell0812
+[root@rhel6 shell0812]# booboo -r /tmp/file1
+
+16.取出num.list每一行最大的数字
+[root@rhel6 shell0812]# cat num.list
+20 3 9
+1 2 3
+4 88 9
+
+#!/bin/bash
+while read a b c
+do
+        p=0
+#       A[0]=$a
+#       A[1]=$b
+#       A[2]=$c
+        A=($a $b $c)
+        for i in ${A[*]}
+        do
+
+                if [ $i -ge $p ]
+                then
+                        p=$i
+                else
+                        p=$p
+                fi
+        done
+        echo $p
+done < num.list
+输入你的出生日期，程序会告诉你距离你下一个生日还有几天？
+
+
+
+==============================================================
+正则表达式
+#代表以a开头的
+if [[ $1 =~ ^a  ]]
+then
+        echo ok
+else
+        echo no
+fi
+
+#代表以a结尾的
+if [[ $1 =~ a$  ]]
+then
+        echo ok
+else
+        echo no
+fi
+
+#代表a..代表a字符后面一定有两个字符
+if [[ $1 =~ a..  ]]
+then
+	echo ok
+else
+	echo no
+fi
+
+#!/bin/bash
+#代表匹配a字符后面可以是0个b，也可以是多个b
+if [[ $1 =~ ab*  ]]
+then
+	echo ok
+else
+	echo no
+fi
+
+#!/bin/bash
+#ab.* 代表匹配ab字符，后面可以是任意字符
+if [[ $1 =~ ab.*  ]]
+then
+	echo ok
+else
+	echo no
+fi
+
+# 课后作业，试着去理解下列匹配
+[[  $ip =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]
+[[  $ip =~ ^[:digit:].*[:digit:]$ ]]
+[[  $a =~ ^[a,b].*[a,b]$  ]]
+[[  $a =~ ^[^a] ]]
+[[  $a =~ a{4} ]]
+
+
+
+
+======================================================
+1.下载mysqlbinlog.row文件
+2.打印第三行
+3.打印1到5行
+4.打印最后一行
+5.打印30到最后一行
+2.打印包含“BEGIN”的行
+3.打印包含“COMMIT”的行
+4.打印以“###”开头的行
+5.删除每一行的“### ”
+6.删除所有“/*到*/”
+7.将“DELETE FROM”替换为“insert into”
+8.将“INSERT INTO”替换为“delete from”
+9.将“SET”替换为“where”
+10.将“WHERE”替换为“set”
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

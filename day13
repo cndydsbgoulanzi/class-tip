@@ -1,0 +1,289 @@
+day13 20160803
+----------------------------------
+复习
+-----------------------------------------
+软件	bind bind-chroot
+service	named	service named start
+daemon	named	ps -ef|grep named
+端口号	53
+配置文件	/etc/named.conf
+	/etc/named.rfc1912.zones
+数据文件	/var/named/
+	/var/named/slaves/
+-------------------------------------------
+今天的内容
+1.设置vsftpd服务：
+	要求1	匿名用户能够对/var/ftp/test/目录有上传下载的权限。
+	要求2	系统用户能够访问家目录，上传下载删除
+	要求3	系统用户student有chroot的权限
+
+==============================================
+FTP （nfs samba）
+文件共享服务
+rhel6		rhel7
+ftp服务器	客户端
+
+
+-----------------------------------
+服务端
+软件	vsftpd
+service	vsftpd
+daemon	vsftpd
+端口号	21
+配置文件	/etc/vsftpd/vsftpd.conf
+
+数据文件	/var/ftp/
+	/var/ftp/pub
+----------------------------------
+客户端
+软件	lftp		rhel6 vsftpd-2.2.2-11.el6_4.1.x86_64
+			rhel7 vsftpd-3.0.2-9.el7.x86_64
+命令	lftp
+	系统用户		lftp superman@172.25.0.11
+	匿名用户  	lftp 172.25.0.11
+================================================================
+1.从客户端以匿名用户来访问ftp服务
+[root@rhel7 ~]# lftp 172.25.0.11
+lftp 172.25.0.11:~> cd pub
+cd ok, cwd=/pub
+lftp 172.25.0.11:/pub> ls
+lftp 172.25.0.11:/pub> put rhel7
+put: Access failed: 550 Permission denied. (rhel7)
+----------------------------------------------------
+# 当前的情况：
+	匿名用户能够访问/var/ftp/pub，能够查看文件内容，能够下载；不能上传文件,不能删除文件。
+
+# 问题的解决
+	# 报错550，没有权限上传文件
+	# 我们要分析以下权限有哪些？
+		vsftpd的配置文件
+		UGO、特殊、隐藏、ACL、
+		SELINUX
+
+-------------------------------------
+1.修改主配置文件
+vim /etc/vsftpd/vsftpd.conf
+anon_upload_enable=YES
+
+2./var/ftp/pub 目录o-rwx
+[root@rhel6 pub]# ll -d /var/ftp/pub
+drwxr-xrwx. 2 root root 4096 Aug  3 10:35 /var/ftp/pub
+
+-------------------------------------------------------------
+lftp 172.25.0.11:/pub> put rhel7 
+put: Access failed: 553 Could not create file. (rhel7)
+-------------------------------------------------------------
+# 问题的解决
+	# 目前修改了配置文件和ugo权限
+	# 报错553，不能create file
+	# 我们分析一下，只有selinux的权限问题了
+------------------------------------------------------------
+3.SELINUX
+1)先关闭selinux，测试ok的
+2)开启selinux
+	我们需要去分析selinux的记录，分析工具是sealert,由setroubleshoot软件安装的。
+	# 查看当前系统中是否有sealert工具	which sealert
+	# 安装setroubleshoot		yum install -y setroubleshoot
+	# 分析selinux记录		sealert -a /var/log/audit/audit.log
+		*****  Plugin allow_anon_write (53.1 confidence) suggests  *******************
+
+		If you want to allow /usr/sbin/vsftpd to be able to write to shared public content
+		Then you need to change the label on pub to public_content_rw_t, and potentially turn on the
+		allow_httpd_sys_script_anon_write boolean.
+		Do
+		# semanage fcontext -a -t public_content_rw_t pub
+		# restorecon -R -v pub
+		# setsebool -P allow_ftpd_anon_write 1
+--------------------------------------------------
+		[root@rhel6 pub]# semanage fcontext -a -t public_content_rw_t /var/ftp/pub
+		[root@rhel6 pub]# restorecon -R -v /var/ftp/pub
+		[root@rhel6 pub]# ll -Zd /var/ftp/pub
+		drwxr-xrwx. root root system_u:object_r:public_content_rw_t:s0 /var/ftp/pub
+========================================================================================================
+lftp 172.25.0.11:/pub> put rhel7
+lftp 172.25.0.11:/pub> ls
+-rw-------    1 14       50              0 Aug 03 05:53 rhel7
+lftp 172.25.0.11:/pub> exit
+
+====================================================================================================
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+2.系统用户访问ftp服务器
+# 服务端
+[root@rhel6 ftp]# id student
+uid=500(student) gid=500(student) groups=500(student)
+[root@rhel6 ftp]# passwd student
+Changing password for user student.
+New password: 
+BAD PASSWORD: it is based on a dictionary word
+Retype new password: 
+passwd: all authentication tokens updated successfully.
+
+[root@rhel6 ftp]# su - student
+[student@rhel6 ~]$ pwd
+/home/student
+[student@rhel6 ~]$ touch file1
+[student@rhel6 ~]$ echo aaa > file1
+-------------------------------------------------
+# 客户端
+[root@rhel7 ~]# lftp student@172.25.0.11
+Password: 
+lftp student@172.25.0.11:~> ls      
+ls: Login failed: 500 OOPS: cannot change directory:/home/student
+=========================================================================
+# 当前的情况：
+	系统用户student不能访问家目录。
+
+# 问题的解决
+	# 报错500，没有权限进入用户家目录
+	# 配置文件没有问题，ugo权限没有问题，只剩下selinux
+	# setsebool -P ftp_home_dir 1
+-------------------------------------------------------------
+# 服务器端
+[root@rhel6 ftp]# sealert -a /var/log/audit/audit.log 
+
+*****  Plugin catchall_boolean (47.5 confidence) suggests  *******************
+
+If you want to allow ftp to read and write files in the user home directories
+Then you must tell SELinux about this by enabling the 'ftp_home_dir'boolean.
+Do
+setsebool -P ftp_home_dir 1
+
+[root@rhel6 ftp]# setsebool -P ftp_home_dir 1
+
+# 客户端
+lftp student@172.25.0.11:~> ls
+lftp student@172.25.0.11:~> pwd  
+ftp://student@172.25.0.11/%2Fhome/student
+lftp student@172.25.0.11:~> ls
+-rw-rw-r--    1 500      500             4 Aug 03 07:13 file1
+lftp student@172.25.0.11:~> cat file1
+aaa
+4 bytes transferred
+lftp student@172.25.0.11:~> get file1
+4 bytes transferred
+lftp student@172.25.0.11:~> put 
+.ICEauthority  .bashrc	 .dbus/     .tcshrc	Music/	    Videos/		  rhel7
+.bash_history  .cache/	 .esd_auth  Desktop/	Pictures/   anaconda-ks.cfg	  test1
+.bash_logout   .config/  .local/    Documents/	Public/     file1
+.bash_profile  .cshrc	 .ssh/	    Downloads/	Templates/  initial-setup-ks.cfg
+lftp student@172.25.0.11:~> put rhel7
+lftp student@172.25.0.11:~> ls
+-rw-rw-r--    1 500      500             4 Aug 03 07:13 file1
+-rw-r--r--    1 500      500             0 Aug 03 07:13 rhel7
+lftp student@172.25.0.11:~> rm file1
+rm ok, `file1' removed
+lftp student@172.25.0.11:~> ls
+-rw-r--r--    1 500      500             0 Aug 03 07:13 rhel7
+--------------------------------------------------------------------
+# 当前的情况	
+	系统用户已经可以实现能够访问家目录，并且能够下载、上传、删除了！
+
+========================================================================================
+～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～
+3.系统用户student有chroot的权限
+匿名用户的根目录	/var/ftp/
+系统用户的根目录	/home/student/
+
+				chroot_local_user=YES	chroot_local_user=NO
+chroot_list_enable=YES		不能换根，有例外		都能换根，有例外		
+chroot_list_enable=NO		不能换根，没例外		都能换根，没例外
+
+chroot_list_file=/etc/vsftpd/chroot_list
+student
+------------------------------------------------
+# 服务器端
+[root@rhel6 ftp]# vim /etc/vsftpd/vsftpd.conf 
+chroot_local_user=YES
+chroot_list_enable=YES
+chroot_list_file=/etc/vsftpd/chroot_list
+[root@rhel6 ftp]# service vsftpd restart
+Shutting down vsftpd:                                      [  OK  ]
+Starting vsftpd for vsftpd:                                [  OK  ]
+
+# 客户端
+[root@rhel7 ~]# lftp student@172.25.0.11
+Password: 
+lftp student@172.25.0.11:~> ls      
+-rw-r--r--    1 500      500             0 Aug 03 07:13 rhel7
+-rw-rw-r--    1 500      500             0 Aug 03 08:05 ss
+lftp student@172.25.0.11:/> cd /tmp
+cd: Access failed: 550 Failed to change directory. (/tmp)
+=========================================================================
+# 当前的情况：
+	系统用户student不能切换根目录。
+
+# 问题的解决
+	# 报错550，不能切换根目录
+	# 配置文件中设置chroot的内容
+
+=======================================================================
+拓展内容
+@ 什么root用户不能通过ftp协议访问服务器？
+
+[root@rhel7 ~]# lftp root@172.25.0.11
+Password: 
+lftp root@172.25.0.11:~> ls         
+ls: Login failed: 530 Permission denied. 
+
+# 因为有用户访问控制列表/etc/vsftpd/user_list
+userlist_enable=YES
+
+[root@rhel6 ftp]# cat /etc/vsftpd/user_list
+# vsftpd userlist
+# If userlist_deny=NO, only allow users in this file
+# If userlist_deny=YES (default), never allow users in this file, and
+# do not even prompt for a password.
+# Note that the default vsftpd pam config also checks /etc/vsftpd/ftpusers
+# for users that are denied.
+root
+bin
+daemon
+adm
+lp
+sync
+shutdown
+halt
+mail
+news
+uucp
+operator
+games
+nobody
+
+
+=====================================================================================
+
+
+设置服务开机启动rhel6
+[root@rhel6 ftp]# chkconfig vsftpd on
+[root@rhel6 ftp]# chkconfig |grep vsftpd
+vsftpd         	0:off	1:off	2:on	3:on	4:on	5:on	6:off
+
+=================================================================================================
+vsftpd 3.0
+
+[root@rhel7 ftp]# vim /etc/vsftpd/vsftpd.conf 
+chroot_local_user=YES
+chroot_list_enable=YES
+chroot_list_file=/etc/vsftpd/chroot_list
+allow_writeable_chroot=YES
+--------------------------------------------------
+[root@rhel7 ~]# vim /usr/share/doc/vsftpd-3.0.2/Changelog
+
+
+
+====================================================================
+作业：
+分别在rhel6和rhel7上完成
+设置vsftpd服务：
+	要求1	匿名用户能够对/var/ftp/test/目录有上传下载的权限。
+	要求2	系统用户能够访问家目录，上传下载删除
+	要求3	系统用户student有chroot的权限
+
+
+
+
+
+
+
+

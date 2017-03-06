@@ -1,0 +1,667 @@
+DAY16 20160808 NTP/Chony postfix iptables
+========================================
+复习上周的内容
+服务
+	域名解析服务 		文件共享服务			web服务
+	DNS		FTP	NFS		SAMBA		APACHE
+软件	bind		vsftpd 	rpcbind		samba		httpd
+	bind-chroot		nfs-utils	samba-common
+
+服务	named		vsftpd	
+daemon	named		vsftpd
+端口号	53		21	111 2049	137 138 139 445 80 8080等等 
+配置文件	/etc/named.conf 
+	/etc/named.rfc1912.zones
+数据文件	/var/named/
+
+客户端			lftp	rpcbind		samba-client	elinks
+命令	nslookup	lftp	nfs-utils
+				mount		smbclient	links
+--------------
+排错
+配置文件
+文件目录的权限 
+selinux	
+======================================================================================
+1.时间同步服务
+服务端
+		rhel6			rhel7
+软件		ntp			chrony
+service		ntpd			chronyd
+daemon		ntpd			chronyd
+配置文件		/etc/ntp.conf		/etc/chrony.conf
+数据文件		/var/lib/ntp		/var/lib/chrony
+日志文件		/var/log/ntpstats	/var/log/chrony
+
+客户端
+命令		ntpdate			timedatectl set-ntp 1
+		ntpdate 172.25.0.11
+-------------------------------------------------------
+课堂实验：
+1.将rhel6配置成ntp时间同步服务器，rhel7可以同步ntp服务的时间。
+restrict	定义了谁能来同步我
+		restrict 172.25.0.0 mask 255.255.255.0 nomodify
+server		定义了我去同步谁
+		server 	172.25.0.9==>已存在的时间同步服务器，并且层数比我高及小于10的
+		
+		server  127.127.1.0     # local clock
+		fudge   127.127.1.0 stratum 10
+
+2.将rhel7配置成chrony时间同步服务器，rhel7打开NTP同步
+allow	172.25.0.0/24
+
+========================================================
+ntp
+
+===========================
+ntp-4.2.6p5-1.el6.x86_64
+===========================
+配置详解:
+NTP安全设置(restrict)
+
+运行一个NTP Server不需要占用很多的系统资源,所以也不用专门配置独立的服务器,就可以给许多client提供时间同步服务, 但是一些基本的安全设置还是很有必要的
+那么这里一个很简单的思路就是第一我们只允许局域网内一部分的用户连接到我们的服务器. 第二个就是这些client不能修改我们服务器上的时间
+
+ driftfile /var/lib/ntp/drift  #侦测BIOS时钟与Linux系统时间的差异写入次文件。
+
+ 
+
+利用restrict 来管理权限控制
+Restrict [IP]  mask [netmask_IP] [parameter]
+
+Parameter 的参数主要如下：
+	ignore :拒绝所有类型的NTP联机。
+	nomodify: 客户端不能使用ntpc 与ntpq 这两个程序来修改服务器的时间参数，但客户端可透过这部主机来进行网络校时；
+	noquery:客户端不能够使用ntpc 与ntpq 等指令来查询时间服务器，不提供NTP的网络校时。
+	notrap:不提供trap 这个运程事件登入的功能。
+	notrust:拒绝没有认证的客户端。
+	Kod:kod技术可以阻止“Kiss of Death “包对服务器的破坏。拒绝服务攻击
+	Nopeer:不与其他同一层的NTP服务器进行时间同步。
+
+------------------------------------------------------ 
+
+利用server 设定上层NTP服务器，格式如下：
+server [IP or hostname] [prefer]
+	perfer:表示优先级最高
+	burst ：当一个运程NTP服务器可用时，向它发送一系列的并发包进行检测。
+	iburst ：当一个运程NTP服务器不可用时，向它发送一系列的并发包进行检测。
+	注：默认情况小15分钟后才会与上层NTP服务器进行时间校对。
+
+ 
+
+-----------------------------------------
+###
+谁能来同步我的时间？
+###
+
+首先我们对于默认的client拒绝所有的操作
+代码:
+restrict default kod nomodify notrap nopeer noquery
+
+然后允许本机地址一切的操作
+代码:
+restrict 127.0.0.1
+
+最后我们允许局域网内所有client连接到这台服务器同步时间.但是拒绝让他们修改服务器上的时间
+代码:
+restrict 172.25.0.0 mask 255.255.255.0 nomodify
+------------------------------------------------------------
+
+###
+我去同步谁的时间？
+###
+server 	时间同步服务器	层数比我高的，及数字比我小的
+server  127.127.1.0     # local clock
+fudge   127.127.1.0 stratum 10
+=======================================================
+
+服务器端
+
+[root@rhel6 ~]# yum install -y ntp
+[root@rhel6 ~]# vim /etc/ntp.conf
+[root@rhel6 ~]# grep -v "^#" /etc/ntp.conf|grep -v "^$"
+driftfile /var/lib/ntp/drift
+restrict default kod nomodify notrap nopeer noquery
+restrict -6 default kod nomodify notrap nopeer noquery
+restrict 127.0.0.1 
+restrict -6 ::1
+restrict 172.25.0.0 mask 255.255.255.0 nomodify 
+server 172.25.0.11
+server  127.127.1.0     
+fudge   127.127.1.0 stratum 10
+includefile /etc/ntp/crypto/pw
+keys /etc/ntp/keys
+[root@rhel6 ~]# service ntpd start
+Starting ntpd:                                             [  OK  ]
+[root@rhel6 ~]# service iptables stop
+
+客户端
+[root@rhel7 ~]# which ntpdate
+/usr/sbin/ntpdate
+[root@rhel7 ~]# rpm -qf /usr/sbin/ntpdate 
+ntpdate-4.2.6p5-18.el7.x86_64
+[root@rhel7 ~]# systemctl stop firewalld
+[root@rhel7 ~]# ntpdate 172.25.0.11
+ 2 Aug 06:36:51 ntpdate[8128]: step time server 172.25.0.11 offset -0.691491 sec
+[root@rhel7 ~]# date -s "2016-08-01"
+Mon Aug  1 00:00:00 EDT 2016
+[root@rhel7 ~]# date
+Mon Aug  1 00:00:01 EDT 2016
+[root@rhel7 ~]# ntpdate 172.25.0.11
+ 2 Aug 06:37:35 ntpdate[8140]: step time server 172.25.0.11 offset 110240.425235 sec
+[root@rhel7 ~]# date
+Tue Aug  2 06:37:37 EDT 2016
+================================================================
+一些补充和拾遗（挺重要）
+
+1.配置文件中的driftfile是什么?
+我们每一个system clock的频率都有小小的误差,这个就是为什么机器运行一段时间后会不精确. NTP会自动来监测我们时钟的误差值并予以调整.但问题是这是一个冗长的过程,所以它会把记录下来的误差先写入driftfile.这样即使你重新开机以后之前的计算结果也就不会丢失了
+
+2.如何同步硬件时钟?
+NTP一般只会同步system clock. 但是如果我们也要同步RTC(hwclock)的话那么只需要把下面的选项打开就可以了
+代码:
+# vi /etc/sysconfig/ntpd
+SYNC_HWCLOCK=yes
+
+
+3.让rhel6运行ntpdate更新时间时，rhel6同步失败，会提示端口被占用：如下
+[root@rhel6 ~]# ntpdate 172.25.0.11
+ 2 Aug 18:39:16 ntpdate[4831]: the NTP socket is in use, exiting
+
+4.利用crontab让rhel7 NTP定时更新时间
+0 8 * * * /usr/sbin/ntpdate 172.25.0.11
+===============================================================
+
+=================================================================
+chrony-1.29.1-1.el7.x86_64
+===============================================================
+RHEL从7.0开始改用chrony同步时间，原ntp同步方式也可以使用，但要安装ntp服务。
+	chronyd是一个在系统后台运行的守护进程。他根据网络上其他时间服务器时间来测量本机时间的偏移量从而调整系统时钟。对于孤立系统，用户可以手动周期性的输入正确时间（通过chronyc）。在这两种情况下，chronyd决定计算机快慢的比例，并加以纠正。chronyd实现了NTP协议并且可以作为服务器或客户端。
+	
+----------------------------------------------------------
+[root@rhel7 ~]# yum install -y chrony
+
+[root@rhel7 ~]# vim /etc/chrony.conf 
+[root@rhel7 ~]# grep -v "^#" /etc/chrony.conf |grep -v "^$"
+server 172.25.0.10 
+allow 172.25.0.0/24
+stratumweight 0
+driftfile /var/lib/chrony/drift
+rtcsync
+makestep 10 3
+bindcmdaddress 127.0.0.1
+bindcmdaddress ::1
+keyfile /etc/chrony.keys
+commandkey 1
+generatecommandkey
+noclientlog
+logchange 0.5
+logdir /var/log/chrony 
+[root@rhel7 ~]# timedatectl
+      Local time: Tue 2016-08-02 07:24:15 EDT
+  Universal time: Tue 2016-08-02 11:24:15 UTC
+        RTC time: Tue 2016-08-02 11:24:15
+        Timezone: America/New_York (EDT, -0400)
+     NTP enabled: yes
+NTP synchronized: yes
+ RTC in local TZ: no
+      DST active: yes
+ Last DST change: DST began at
+                  Sun 2016-03-13 01:59:59 EST
+                  Sun 2016-03-13 03:00:00 EDT
+ Next DST change: DST ends (the clock jumps one hour backwards) at
+                  Sun 2016-11-06 01:59:59 EDT
+                  Sun 2016-11-06 01:00:00 EST
+==========================================================================
+简单邮件服务postfix
+1990年 荷兰工程师 IBM华生研究中心 
+开源、免费、更快、更健壮、兼容性好、更安全等优点
+
+课堂实验：
+1.基于相同域名的一台服务器之间的邮件通信
+2.基于不同域名的两台服务器之间的邮件通信
+----------------------------------------
+1.邮件服务的组成
+	MUA 邮件用户代理
+	MTA 邮件传输代理
+	MDA 邮件分发代理
+2.邮件服务的协议
+	smtp 简单邮件传输协议 25
+	imap 交互式邮件存取协议 145
+	pop3 110
+3.我们要学习的内容为：
+	MTA邮件传输代理软件postfix，使用smtp简单邮件协议，端口号为25
+4.学习目标
+	1）基于相同域名的一台服务器之间的邮件通信
+	2）基于不同域名的两台服务器之间的邮件通信
+-------------------------------------------------------------
+#服务端
+软件		postfix
+service		postfix
+deamon		postfix
+端口号		25
+配置文件		/etc/postfix/main.cf
+数据文件		/var/lib/postfix
+
+#客户端
+软件		mailx
+命令		mail
+		发邮件
+			mail batman@qq.com
+				以.提交
+				exit退出
+		收邮件	mail
+				root可以查看所有人的邮件 mail -u student
+				普通用户只能查看自己的邮件
+================================================
+rhel6---->postfix.qq.com
+	superman@qq.com
+	batman@qq.com
+----------------------------
+/etc/postfix/main.cf
+myhostname = postfix.qq.com
+mydomain = qq.com
+myorigin = $mydomain
+inet_interfaces = all
+mydestination = $myhostname, localhost.$mydomain, localhost, $mydomain
+----------------------------------------------------------------------------
+群发的功能alias，别名
+/etc/aliases
+justice:        batman,superman,root
+========================================================
+详细步骤：
+	1.配置dns解析
+	2.安装postfix，查看软件架构
+	3.修改配置文件/etc/postfix/main.cf
+	4.启动服务
+	5.创建用户batman，superman
+	6.测试邮件是否能够互发
+	7.添加群发功能，当发给justice@qq.com的时候会发给superman,batman,root
+	8.测试群发功能是否成功
+
+# 配置dns解析
+[root@rhel6 ~]# yum install -y bind bind-chroot
+[root@rhel6 ~]# vim /etc/named.conf
+[root@rhel6 ~]# vim /etc/named.rfc1912.zones 
+zone "qq.com" IN {
+	type master;
+	file "named.qq";
+	allow-update { none; };
+};
+
+[root@rhel6 ~]# cd /var/named
+[root@rhel6 named]# cp -p named.localhost named.qq
+[root@rhel6 named]# vim named.qq
+	NS	@
+	A	172.25.0.11
+www	A	172.25.0.11
+	MX 5	postfix
+postfix	A	172.25.0.11
+
+[root@rhel6 named]# service named start
+Generating /etc/rndc.key:                                  [  OK  ]
+Starting named:                                            [  OK  ]
+[root@rhel6 named]# vim /etc/resolv.conf
+namserver 172.25.0.11 
+[root@rhel6 named]# nslookup
+> www.qq.com
+Server:		172.25.0.11
+Address:	172.25.0.11#53
+
+Name:	www.qq.com
+Address: 172.25.0.11
+> postfix.qq.com
+Server:		172.25.0.11
+Address:	172.25.0.11#53
+
+Name:	postfix.qq.com
+Address: 172.25.0.11
+> exit
+
+# 安装postfix，查看软件架构
+[root@rhel6 named]# vim /etc/resolv.conf
+#namserver 172.25.0.11 
+nameserver 172.25.254.254
+[root@rhel6 ~]# yum install -y postfix
+[root@rhel6 ~]# rpm -ql postfix
+
+# 修改配置文件/etc/postfix/main.cf
+[root@rhel6 ~]# vim /etc/postfix/main.cf
+/etc/postfix/main.cf
+myhostname = postfix.qq.com
+mydomain = qq.com
+myorigin = $mydomain
+inet_interfaces = all
+mydestination = $myhostname, localhost.$mydomain, localhost, $mydomain
+
+# 启动服务
+[root@rhel6 ~]# service postfix start
+	
+# 创建用户batman，superman
+
+# 测试邮件是否能够互发
+###batman发给superman@qq.com
+[batman@rhel6 ~]$ mail superman@qq.com
+Subject: test1
+Dear superman,
+bye bye
+.
+EOT
+###superman接收了batman@qq.com的邮件
+[superman@rhel6 ~]$ mail
+Heirloom Mail version 12.4 7/29/08.  Type ? for help.
+"/var/spool/mail/superman": 1 message 1 new
+>N  1 batman@qq.com         Mon Aug  8 13:52  19/550   "test1"
+& 1
+Message  1:
+From batman@qq.com  Mon Aug  8 13:52:44 2016
+Return-Path: <batman@qq.com>
+X-Original-To: superman@qq.com
+Delivered-To: superman@qq.com
+Date: Mon, 08 Aug 2016 13:52:44 +0800
+To: superman@qq.com
+Subject: test1
+User-Agent: Heirloom mailx 12.4 7/29/08
+Content-Type: text/plain; charset=us-ascii
+From: batman@qq.com
+Status: R
+
+Dear superman,
+bye bye
+
+& exit
+-------------------
+###superman发邮件给batman@qq.com
+[superman@rhel6 ~]$ mail batman@qq.com
+Subject: test2 
+Dear batman
+bye bye
+.
+EOT
+###batman接收了superman@qq.com的邮件
+[batman@rhel6 ~]$ mail
+Heirloom Mail version 12.4 7/29/08.  Type ? for help.
+"/var/spool/mail/batman": 1 message 1 new
+>N  1 superman@qq.com       Mon Aug  8 13:55  19/547   "test2"
+& 1
+Message  1:
+From superman@qq.com  Mon Aug  8 13:55:23 2016
+Return-Path: <superman@qq.com>
+X-Original-To: batman@qq.com
+Delivered-To: batman@qq.com
+Date: Mon, 08 Aug 2016 13:55:23 +0800
+To: batman@qq.com
+Subject: test2
+User-Agent: Heirloom mailx 12.4 7/29/08
+Content-Type: text/plain; charset=us-ascii
+From: superman@qq.com
+Status: R
+
+Dear batman
+bye bye
+
+& exit
+
+
+# 添加群发功能，当发给justice@qq.com的时候会发给superman,batman,root
+[root@rhel6 named]# vim /etc/aliases
+justice:        batman,superman,root
+[root@rhel6 named]# newaliases	
+
+# 测试群发功能是否成功
+#####batman发邮件给justice@qq.com后；batman,superman和root是否都能收到邮件？
+[batman@rhel6 ~]$ mail justice@qq.com
+Subject: test3
+lskdjflksdjf
+.
+EOT
+[batman@rhel6 ~]$ mail
+Heirloom Mail version 12.4 7/29/08.  Type ? for help.
+"/var/spool/mail/batman": 2 messages 2 new
+>N  1 superman@qq.com       Mon Aug  8 13:55  19/547   "test2"
+ N  2 batman@qq.com         Mon Aug  8 14:00  18/537   "test3"
+& exit
+
+[superman@rhel6 ~]$ mail
+Heirloom Mail version 12.4 7/29/08.  Type ? for help.
+"/var/spool/mail/superman": 2 messages 2 new
+>N  1 batman@qq.com         Mon Aug  8 13:52  19/550   "test1"
+ N  2 batman@qq.com         Mon Aug  8 14:00  18/537   "test3"
+& exit
+
+[root@rhel6 named]# mail
+Heirloom Mail version 12.4 7/29/08.  Type ? for help.
+"/var/spool/mail/root": 1 message 1 new
+>N  1 batman@qq.com         Mon Aug  8 14:00  18/537   "test3"
+& exit
+
+============================================================================
+rhel7
+163.com
+postfix.163.com
+
+
+2）基于不同域名的两台服务器之间的邮件通信
+防火墙关闭
+inet_interfaces = all	并且只能打开一个
+
+
+========================================================================================================
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+防火墙 iptables
+
+1.防火墙的作用：
+	防火墙是一个组件，工作在网络边缘（主机边缘），对进出网络数据包基于一定的规则检查，并在匹配某规则时由规则定义的处理进行处理的一组功能的组件。
+2.防火墙类型
+	根据工作的层次的不同来划分，常见的防火墙工作在OSI第三层，即网络层防火墙，工作在OSI第七层的称为应用层防火墙，或者代理服务器（代理网关）。
+	网络层防火墙又称包过滤防火墙，在网络层对数据包进行选择，选择的依据是系统内设置的过滤逻辑，通过检查数据流中每个数据的源地址，目的地址，所用端口号和协议状态等因素来确定是否允许该数据包的通过，以及数据包的流向等。
+	还可以分为硬件防火墙和软件防火墙
+3.软件防火墙
+EL6上的防火墙叫做iptables。
+EL7上的防火墙叫做firewalld。
+
+=================================
+4.语法
+
+iptables -t table CMD chain rule-matcher -j target
+	    表	  动作 链	规则匹配	   执行操作
+
+# 表table
+	filter 表:用于过滤数据包
+	nat 表:用于修改数据包的来源和目的地
+	mangle 表:用户修改数据包的生存周期等等
+	raw 表:跟踪机制
+	
+	使用 -t 来指定表,如果省略,则代表对 filter 表进行操作
+
+# CMD动作
+	A 追加
+	I 插入
+	D 删除
+	L 罗列
+	F 清空
+
+# 表当中包含链chain
+	链是用来区分数据包的流向状态
+	
+	INPUT 入站的数据包
+	OUTPUT 出站的数据包
+	PREROUTING 路由判断之前的数据包
+	POSTROUTING 路由判断之后的数据包
+	FORWARD 第一次路由判断之后,到最后一词路由判断之前
+
+# 规则rule
+	是用来判断数据包的具体情况
+	-p 协议
+	-s 来源
+	-d 目的地
+	--sport 来源端口
+	--dport 目的端口
+	-i 入站网络接口
+	-o 出站网络接口
+	! 取反
+
+# 执行操作target
+	ACCEPT 接受
+	DROP 丢弃
+	REJECT 拒绝
+	DNAT 目标地址转换
+	SNAT 源地址转换
+================================================
+应用示例
+0.查看规则	iptables -L
+1.规则清空	iptables -F
+2.预选策略	iptables -P INPUT ACCEPT
+3.保存策略	service iptables save
+		iptables-save > /etc/sysconfig/iptables	
+4.开机后重新导入	iptables-restore < /etc/sysconfig/iptables
+-----------------------------------------------------------------
+rhel6 172.25.0.11
+1.只允许172.25.0.250和你自己的服务器能够访问ftp服务（rhel6）
+
+来源 	-s 172.25.0.250
+	-s 172.25.0.11
+进来的	INPUT
+---------
+目标
+端口号	--dport 21
+协议	-p tcp
+--------------
+允许	ACCEPT
+～～～～～～～～～～～
+iptables -A INPUT -s 172.25.0.250 -p tcp --dport 21 -j  ACCEPT
+iptables -A INPUT -s 172.25.0.11 -p tcp --dport 21 -j ACCEPT
+iptables -A INPUT -p tcp --dport 21 -j DROP
+
+除了他们其他不允许
+===============================================
+2.禁止ping包
+进来	INPUT
+协议	icmp
+---------
+扔掉
+iptables -A INPUT -p icmp -j DROP
+
+=========================================
+3.仅允许172.25.0.0/24网段和172.25.15.0/24网段用户能够访问我的邮件服务器
+进来	INPUT
+来源	-s 172.25.0.0/24
+	-s 172.25.15.0/24
+------------------------
+协议	-p tcp
+端口	--dport 25
+------------------------
+允许	-j ACCEPT
+--------------------------
+其他人都不允许
+==================================================
+iptables -A INPUT -s 172.25.0.0/24 -p tcp --dport 25 -j ACCEPT
+iptables -A INPUT -s 172.25.15.0/24 -p tcp --dport 25 -j ACCEPT
+iptables -A INPUT -p tcp --dport 25 -j DROP
+
+==============================================================================
+
+rhel6 172.25.x.11
+课堂练习题目
+1.清空规则
+2.预设filter表INPUT是ACCEPT
+3.仅允许172.25.254.250和172.25.254.X 能够ssh到我的服务器（rhel6 172.25.X.11）上
+进来	INPUT
+来源 	-s 172.25.254.250
+	-s 172.25.254.16
+协议	-p tcp
+端口号	--dport 22
+允许	-j ACCEPT
+-----------------------------------------
+iptables -A INPUT -s 172.25.254.250 -p tcp --dport 22 -j ACCEPT
+iptables -A INPUT -s 172.25.254.16 -p tcp --dport 22 -j ACCEPT
+iptables -A INPUT -p tcp --dport 22 -j DROP
+
+
+
+4.仅允许172.25.254.0/24和172.25.X.0/24能够ping我的服务器 
+INPUT
+-s 172.25.254.0/24
+-s 172.25.X.0/24
+-p icmp
+-j ACCEPT
+------------------------------------
+iptables -A INPUT -s 172.25.254.0/24 -p icmp -j ACCEPT
+iptables -A INPUT -s 172.25.16.0/24 -p icmp -j ACCEPT
+iptables -A INPUT -p icpm -j DROP
+
+5.不允许172.25.254.254访问我的邮件服务器
+INPUT
+-s 172.25.254.254
+-p tcp
+--dport 25
+-j DROP
+-------------------------------------
+iptables -A INPUT -s 172.25.254.254 -p tcp --dport 25 -j DROP
+
+6.保存规则
+rhel6 servcie iptables save
+	iptables-save > /etc/sysconfig/iptables
+
+7.查看规则
+iptables -L
+
+
+8.关机重启
+	iptables-restore < /etc/sysconfig/iptables	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

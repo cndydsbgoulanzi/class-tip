@@ -1,0 +1,236 @@
+day11 20160801
+进程管理
+--------------------------------------
+复习上周五
+
+1.开机启动流程
+2.破解root密码，rhel6和rhel7
+3.内核模块加载
+4.内核升级rhel6和rhel7
+5.系统监控简单入门，cup、内存、硬盘、网络等
+
+--------------------------------------
+进程管理
+
+1.什么是进程？
+运行着的程序。
+2.子进程，父进程
+
+3.命令
+# pstree 可查看系统中的进程关系
+# ps 	查看进程信息
+[root@rhel6 ~]# ps -ef--->详细列出进程信息
+用户号	进程号	父进程 cpu占用率 起始时间 终端 占用cpu的时间	执行的动作
+UID        PID  PPID  C STIME TTY          TIME CMD
+root         1     0  0 10:58 ?        00:00:00 /sbin/init
+root         2     0  0 10:58 ?        00:00:00 [kthreadd]
+root         3     2  0 10:58 ?        00:00:00 [migration/0]
+root         4     2  0 10:58 ?        00:00:00 [ksoftirqd/0]
+root         5     2  0 10:58 ?        00:00:00 [migration/0]
+root         6     2  0 10:58 ?        00:00:00 [watchdog/0]
+root         7     2  0 10:58 ?        00:00:00 [events/0]
+root         8     2  0 10:58 ?        00:00:00 [cgroup]
+root         9     2  0 10:58 ?        00:00:00 [khelper]
+------
+# ps -ef|grep mysqld
+# kill 杀死进程
+kill 1----》信号15号
+kill -9 1 ---》强制杀9号
+[root@rhel6 ~]# kill -l
+ 1) SIGHUP	 2) SIGINT	 3) SIGQUIT	 4) SIGILL	 5) SIGTRAP
+ 6) SIGABRT	 7) SIGBUS	 8) SIGFPE	 9) SIGKILL	10) SIGUSR1
+11) SIGSEGV	12) SIGUSR2	13) SIGPIPE	14) SIGALRM	15) SIGTERM
+16) SIGSTKFLT	17) SIGCHLD	18) SIGCONT	19) SIGSTOP	20) SIGTSTP
+21) SIGTTIN	22) SIGTTOU	23) SIGURG	24) SIGXCPU	25) SIGXFSZ
+26) SIGVTALRM	27) SIGPROF	28) SIGWINCH	29) SIGIO	30) SIGPWR
+31) SIGSYS	34) SIGRTMIN	35) SIGRTMIN+1	36) SIGRTMIN+2	37) SIGRTMIN+3
+38) SIGRTMIN+4	39) SIGRTMIN+5	40) SIGRTMIN+6	41) SIGRTMIN+7	42) SIGRTMIN+8
+43) SIGRTMIN+9	44) SIGRTMIN+10	45) SIGRTMIN+11	46) SIGRTMIN+12	47) SIGRTMIN+13
+48) SIGRTMIN+14	49) SIGRTMIN+15	50) SIGRTMAX-14	51) SIGRTMAX-13	52) SIGRTMAX-12
+53) SIGRTMAX-11	54) SIGRTMAX-10	55) SIGRTMAX-9	56) SIGRTMAX-8	57) SIGRTMAX-7
+58) SIGRTMAX-6	59) SIGRTMAX-5	60) SIGRTMAX-4	61) SIGRTMAX-3	62) SIGRTMAX-2
+63) SIGRTMAX-1	64) SIGRTMAX	
+----------------------------------------
+进程优先级
+PR	priority	内核		动态优先级
+NI	nice		用户 -20-19 	静态优先级
+------------------------------------------
+PR=NI+20
+nice值越高，优先级越低
+----------------------------------
+root用户，所有用户所有进程，-1，-4，5 既能降低又能调高优先级
+普通用户，自己的进程，>0  3 只能降低优先级，数字变大
+-------------------------------------
+命令
+	nice -n [-20-19] CMD
+		eg. nice -n -1 ping 172.25.254.254
+		    ps -le|grep ping
+	renice -n [-20-19] pid
+----------------------------------------------------------
+
+课堂实践
+1.查看新起终端的nice值；
+2.指定新终端的nice值为3；
+3.root用户设置ping 172.25.254.254命令的nice值为-1
+4.root用户设置ping 172.25.254.250命令的nice值为-3
+5.root用户调整ping 172.25.254.254令的的nice值为-8
+6.root用户调整ping 172.25.254.250命令的nice值为4
+7.普通用户student设置ping 172.25.0.10命令的nice值为3
+8.普通用户student调整ping 172.25.0.10命令的nice值为2，是否可以？
+9.普通用户student调整ping 172.25.0.10命令的nice值为6，是否可以？
+
+============================================
+前后台作业
+&	将程序放到后台运行
+jobs	列出后台作业的情况
+fg	将后台作业调到前台运行
+ctrl+z	将前台作业调到后台，暂停
+bg	让后台暂停的作业运行
+-----------------------------------
+课堂训练
+1.将ping 172.25.0.10放到后台运行，并将输出导入/dev/null
+2.将ping 172.25.0.11放到后台运行，并将输出导入/dev/null
+3.查看当前后台作业情况
+4.将1号作业调到前台运行
+5.将1号作业放置后台并暂停；查看后台作业情况
+6.将1号作业在后台运行；查看后台作业情况
+7.杀死1号作业
+
+=========================================================
+# selinux 
+
+1.什么是selinux？
+Security Enhanced Linux 安全强化的 Linux
+美国国家安全局开发的
+默认在红帽的发行版本上使用，其他发行版也能够通过安装包去使用。
+2.目的
+权限的一种，针对进程：能够明确指定某个进程，可以访问哪些资源
+增强系统抵御0-day攻击的能力；
+0-day攻击：利用尚未公开的漏洞实现的攻击行为
+	举例：web apache 
+
+3.查看selinux的状态
+getenforce
+	enforcing -开着，记录并警告
+	permissive -开着，记录不警告
+	disabled -关着，禁用
+4.设置selinux的状态
+# 立刻生效 setenforce 
+usage:  setenforce [ Enforcing | Permissive | 1 | 0 ]
+[root@rhel6 ~]# setenforce 0
+[root@rhel6 ~]# getenforce
+Permissive
+
+# 修改配置文件/etc/selinux/config
+[root@rhel6 ~]# ll /etc/sysconfig/selinux 
+lrwxrwxrwx. 1 root root 17 Jul  2  2015 /etc/sysconfig/selinux -> ../selinux/config
+[root@rhel6 ~]# ll /etc/selinux/config 
+-rw-r--r--. 1 root root 458 Jul  2  2015 /etc/selinux/config
+
+
+[root@rhel6 ~]# cat /etc/selinux/config 
+
+# This file controls the state of SELinux on the system.
+# SELINUX= can take one of these three values:
+#     enforcing - SELinux security policy is enforced.
+#     permissive - SELinux prints warnings instead of enforcing.
+#     disabled - No SELinux policy is loaded.
+SELINUX=enforcing
+# SELINUXTYPE= can take one of these two values:
+#     targeted - Targeted processes are protected,
+#     mls - Multi Level Security protection.
+SELINUXTYPE=targeted 
+
+-----------------------------------------------------------
+5.如果selinux开着，我怎么去设置权限。
+# audit 软件名
+命令	audit
+作用	将selinux记录的信息，保存在日志当中/var/log/audit/audit.log
+
+# setroubleshoot*  软件
+命令	sealert
+作用	1.将selinux记录的信息，保存在日志当中/var/log/messages
+	2.分析selinux记录的信息，给你提供一个参考建议
+命令的用法	sealert /var/log/audit/audit.log
+
+# selinux-policy-devel 软件
+rhel6没有
+rhel7有
+帮助文档
+
+
+=================================================
+课堂实验
+1.修改当前selinux的状态，permissive
+2.查看selinux
+3.修改配置文件，disabled，重启，查看selinux的状态。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

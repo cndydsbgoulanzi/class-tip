@@ -1,0 +1,610 @@
+day4 2016.07.21 文件和目录-2
+
+复习昨天的内容
+1.目录树
+/etc/
+/tmp/
+/var/
+/home/
+2.文件和目录的权限
+1）所属者和所属组
+2）一般权限UGO
+3）特殊权限SUID SGID SBIT
+4）ACL文件访问控制列表
+
+===================================================================
+1.对于文件只允许用户追加内容
+2.不允许删除、修改
+
+隐藏权限ATTR
+lsattr
+chattr
+
+a : 只能增加数据 , 不能删除 / 修改数据 (root)
+i : 以下操作不可执行 : 『删除、改名、设置连结、写入、新增资料』 ( root )
+
+
+[root@rhel7 tmp]# lsattr attr
+---------------- attr
+[root@rhel7 tmp]# chattr +a attr
+[root@rhel7 tmp]# lsattr attr
+-----a---------- attr
+
+
+[batman@rhel7 tmp]$ ll
+total 4
+-rw-rw-rw-. 1 root   root   5 Jul 21 10:41 attr
+d--x------. 2 batman group 30 Jul 21 10:23 test1
+drwxrwxrwt. 2 root   root  45 Jul 21 10:35 testdir
+[batman@rhel7 tmp]$ cat attr
+attr
+[batman@rhel7 tmp]$ echo batman >> attr
+[batman@rhel7 tmp]$ cat attr
+attr
+batman
+[batman@rhel7 tmp]$ echo batman > attr
+-bash: attr: Operation not permitted
+
+[root@rhel7 tmp]# chattr -a attr
+[root@rhel7 tmp]# lsattr attr
+---------------- attr
+
+[batman@rhel7 tmp]$ echo batman > attr
+[batman@rhel7 tmp]$ cat attr
+batman
+------------------------------------------------------
+[root@rhel7 tmp]# chattr +i attr
+[root@rhel7 tmp]# lsattr attr
+----i----------- attr
+
+
+#测试
+[batman@rhel7 tmp]$ rm -rf attr
+rm: cannot remove ‘attr’: Operation not permitted
+[batman@rhel7 tmp]$ mv attr attrbatman
+mv: cannot move ‘attr’ to ‘attrbatman’: Operation not permitted
+[batman@rhel7 tmp]$ echo lkjlkj >> attr
+-bash: attr: Permission denied
+[batman@rhel7 tmp]$ echo iiii > attr
+-bash: attr: Permission denied
+
+#去掉隐藏权限i
+[root@rhel7 tmp]# chattr -i attr
+[root@rhel7 tmp]# lsattr attr
+---------------- attr
+
+
+==========================================================
+inode	记录的的文件和目录的属性，以及数据真正存放的block号
+block	存放数据的地方
+
+对于目录，block记录的是该目录当中的文件或者目录的名称和对应的inode号
+-------------------------------------------------------------------
+链接
+分硬链接和软链接
+ln
+ln file1 file1-h
+ln -s file1 file1-s
+
+
+
+[root@rhel7 tmp]# ll
+total 4
+-rw-r--r--. 1 root root 6 Jul 21 11:36 file
+[root@rhel7 tmp]# ln file file-h
+[root@rhel7 tmp]# ll
+total 8
+-rw-r--r--. 2 root root 6 Jul 21 11:36 file
+-rw-r--r--. 2 root root 6 Jul 21 11:36 file-h
+[root@rhel7 tmp]# ln -s file file-s
+[root@rhel7 tmp]# ll
+total 8
+-rw-r--r--. 2 root root 6 Jul 21 11:36 file
+-rw-r--r--. 2 root root 6 Jul 21 11:36 file-h
+lrwxrwxrwx. 1 root root 4 Jul 21 11:36 file-s -> file
+[root@rhel7 tmp]# ll -i
+total 8
+2071459 -rw-r--r--. 2 root root 6 Jul 21 11:36 file
+2071459 -rw-r--r--. 2 root root 6 Jul 21 11:36 file-h
+    134 lrwxrwxrwx. 1 root root 4 Jul 21 11:36 file-s -> file
+[root@rhel7 tmp]# cat file
+hello
+[root@rhel7 tmp]# cat file-h
+hello
+[root@rhel7 tmp]# cat file-s
+hello
+
+-----------------------------------------------------------------
+测试
+1.删除源文件，通过硬链接是否能够查看文件
+2.删除源文件，通过软链接是否能够查看文件
+
+[root@rhel7 tmp]# rm -rf file
+[root@rhel7 tmp]# ll
+total 4
+-rw-r--r--. 1 root root 6 Jul 21 11:36 file-h
+lrwxrwxrwx. 1 root root 4 Jul 21 11:36 file-s -> file
+[root@rhel7 tmp]# cat file-h
+hello
+[root@rhel7 tmp]# cat file-s
+cat: file-s: No such file or directory
+----------------------------------------
+		硬链接	软链接
+文件		ok	ok
+目录		no	yes
+不同的文件系统 	no	yes	
+
+=====================================================
+课堂作业：
+1.在/tmp目录下创建文件file，输入一些内容；
+2.在/tmp目录下新建file文件的硬链接file-h;
+3.在/tmp目录下新建file文件的软链接file-s;
+4.查看三个文件的inode号；
+5.删除源文件，通过硬链接是否能够查看文件；
+5.删除源文件，通过软链接是否能够查看文件。
+
+-------------------------------------------------------------
+--------------------------------------------------------------
+指令和文件的搜索
+1.通过ls命令
+建议配合grep命令
+[root@rhel7 tmp]# ls /tmp|grep test
+test
+test-s
+[root@rhel7 tmp]# ls /tmp|grep test$
+test
+[root@rhel7 tmp]# ls /tmp|grep ^test
+test
+test-s
+
+2.which 指令的搜索
+[root@rhel7 tmp]# which wget
+/usr/bin/wget
+[root@rhel7 tmp]# which ls
+alias ls='ls --color=auto'
+	/usr/bin/ls
+
+[root@rhel7 tmp]# which mysql
+/usr/bin/which: no mysql in (/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/root/bin)
+
+3.文件名的搜索
+whereis 
+[root@rhel7 tmp]# whereis test
+test: /usr/bin/test /usr/share/man/man1/test.1.gz /usr/share/man/man1p/test.1p.gz
+[root@rhel7 tmp]# whereis -l
+bin: /usr/bin
+bin: /usr/sbin
+bin: /usr/lib
+bin: /usr/lib64
+bin: /etc
+bin: /usr/etc
+bin: /usr/games
+bin: /usr/local/bin
+bin: /usr/local/sbin
+bin: /usr/local/etc
+bin: /usr/local/lib
+bin: /usr/local/games
+bin: /usr/include
+bin: /usr/local
+bin: /usr/libexec
+bin: /usr/share
+man: /usr/share/man/man7
+man: /usr/share/man/man0p
+man: /usr/share/man/man1
+man: /usr/share/man/man1p
+man: /usr/share/man/man1x
+man: /usr/share/man/man2
+man: /usr/share/man/man2x
+man: /usr/share/man/man3
+man: /usr/share/man/man3p
+man: /usr/share/man/man3x
+man: /usr/share/man/man4
+man: /usr/share/man/man4x
+man: /usr/share/man/man5
+man: /usr/share/man/man5x
+man: /usr/share/man/man6
+man: /usr/share/man/man6x
+man: /usr/share/man/man7x
+man: /usr/share/man/man8
+man: /usr/share/man/man8x
+man: /usr/share/man/man9
+man: /usr/share/man/man9x
+man: /usr/share/man/mann
+man: /usr/share/man/hu
+man: /usr/share/man/de
+man: /usr/share/man/ja
+man: /usr/share/man/fr
+man: /usr/share/man/it
+man: /usr/share/man/pl
+man: /usr/share/man/ru
+man: /usr/share/man/cs
+man: /usr/share/man/da
+man: /usr/share/man/id
+man: /usr/share/man/ko
+man: /usr/share/man/pt_BR
+man: /usr/share/man/sv
+man: /usr/share/man/tr
+man: /usr/share/man/zh_CN
+man: /usr/share/man/zh_TW
+man: /usr/share/man/sk
+man: /usr/share/man/pt
+man: /usr/share/man/ca
+man: /usr/share/man/es
+man: /usr/share/man/uk
+man: /usr/share/man/overrides
+man: /usr/share/man/en
+src: /usr/src/debug
+src: /usr/src/kernels
+
+locate test
+--------------------------------------------------
+find
+1.时间分为mtime\ctime\atime
+mtime	最近一次修改文件时间
+ctime	最近一次修改文件属性的时间
+atime	最近一次访问文件的时间 cat 
+stat
+
+[root@rhel7 tmp]# stat file
+  File: ‘file’
+  Size: 0         	Blocks: 0          IO Block: 4096   regular empty file
+Device: fd00h/64768d	Inode: 2071473     Links: 1
+Access: (0644/-rw-r--r--)  Uid: (    0/    root)   Gid: (    0/    root)
+Context: unconfined_u:object_r:user_tmp_t:s0
+Access: 2016-07-21 13:42:32.044741510 +0800
+Modify: 2016-07-21 13:42:32.044741510 +0800
+Change: 2016-07-21 13:42:32.044741510 +0800
+ Birth: -
+
+1.修改文件内容，mtime和ctime变了
+2.访问文件内容，atime变了
+3.修改文件属性，ctime变了。
+
+----------------------------------------------
+找出一天内，文件内容变更的普通文件。
+-mtime -1 
+-type f
+find /tmp -type f -mtime -1
+
+===========================================
+2.uid所属者 gid所属组
+找出/tmp属于batman用户的文件
+
+find /tmp -uid 1003 -type f
+
+3.文件名称
+-name 完全匹配，可以通过*来指定任意字符 
+[root@rhel7 tmp]# find /tmp -name "*batman*"
+/tmp/batman1
+/tmp/batman2
+/tmp/batman3
+/tmp/batman4
+/tmp/batman5
+/tmp/abatmanb
+
+4.ugo权限
+-perm 数字表示
+-perm 	0755
+	+0755
+	-0755
+
+
+5.文件的大小
+-size	+1G
+	-1G
+	1G
+
+6.额外动作
+find [绝对路径] 【找的条件】【执行】 
+
+-exec [ 命令 ] : 后面可再接额外的命令来处理搜寻到的结果
+find / -perm +7000 -exec ls -l {} \;
+
+[root@rhel7 tmp]# find /tmp -name "*bat*" 
+/tmp/batman1
+/tmp/batman2
+/tmp/batman3
+/tmp/batman4
+/tmp/batman5
+/tmp/abatmanb
+[root@rhel7 tmp]# find /tmp -name "*bat*" -exec ls -l {} \;
+-rw-r--r--. 1 batman superman 0 Jul 21 14:10 /tmp/batman1
+-rw-r--r--. 1 batman superman 0 Jul 21 14:10 /tmp/batman2
+-rw-r--r--. 1 batman superman 0 Jul 21 14:10 /tmp/batman3
+-rw-r--r--. 1 batman superman 0 Jul 21 14:10 /tmp/batman4
+-rw-r--r--. 1 batman superman 0 Jul 21 14:10 /tmp/batman5
+-rw-r--r--. 1 batman superman 0 Jul 21 14:14 /tmp/abatmanb
+
+==========================================================
+课堂作业：
+1.找到/etc/目录下名称包含shadow的文件；
+2.找到/目录下大小大于1G的文件；
+3.找到/tmp/目录下一天内，文件属性变更的普通文件；
+4.找到/目录下属于superman用户的文件；
+5.找到/usr/bin/目录下ugo权限为4755的文件。
+==============================================================
+==============================================================
+解压缩和打包
+1.释放空间；
+2.web 
+
+# 压缩
+		zip	gzip 	bzip2	xz
+解压		unzip	gunzip	bunzip2 xz -d
+保留源文件	1	0	0-k	0-k
+压缩比		4	3	1	2
+压缩时间		5s	6s	7s	54s
+解压时间		3s	3s	4s	2s
+内容		文件和目录 文件	文件	文件
+
+压缩比的范围1-9
+压缩质量和压缩时间
+1 最快
+9 最好 
+gzip -9 ffg
+gzip -1 ffg
+
+--------------------------------------------------
+zip [压缩后的文件名.zip] [要压缩的文件名]
+gzip [要压缩的文件名] ---->ff.gz
+bzip2 [要压缩的文件名]---->ff.bz2
+xz [要压缩的文件名]   ---->ff.xz
+
+unzip [压缩后的文件名.zip] 解压在当前目录 -d 指定解压目录
+gunzip [压缩后的文件名.gz]
+bunzip2 [压缩后的文件名.bz2]
+xz -d  [压缩后的文件名.bz2]
+
+
+
+
+
+-----------------------------------------------------
+[root@rhel7 tmp]# dd if=/dev/zero of=/tmp/ff bs=1M count=500
+500+0 records in
+500+0 records out
+524288000 bytes (524 MB) copied, 1.89722 s, 276 MB/s
+[root@rhel7 tmp]# ll
+total 2560004
+-rwxr-xr-x. 1 root root       125 Jul 21 15:13 a.sh
+-rw-r--r--. 1 root root 524288000 Jul 21 15:03 ff
+-rw-r--r--. 1 root root 524288000 Jul 21 15:14 ffb
+-rw-r--r--. 1 root root 524288000 Jul 21 15:14 ffg
+-rw-r--r--. 1 root root 524288000 Jul 21 15:14 ffx
+-rw-r--r--. 1 root root 524288000 Jul 21 15:14 ffz
+# 创建一个测试时间的脚本
+[root@rhel7 tmp]# vim a.sh
+#!/bin/bash
+start=$(date +%s)
+${1} &> /dev/null
+end=$(date +%s)
+time=$(($end-$start))
+echo ${1} 消耗的时间为:$time 秒
+# 修改脚本的权限，添加可执行权限
+# 脚本执行方法为/tmp/a.sh "zip ff.zip ff"
+
+
+[root@rhel7 tmp]# zip ffz.zip ffz
+[root@rhel7 tmp]# gzip ffg
+[root@rhel7 tmp]# bzip2 ffb
+[root@rhel7 tmp]# xz ffx
+[root@rhel7 tmp]# ll
+total 1025080
+-rw-r--r--. 1 root root 524288000 Jul 21 15:03 ff
+-rw-r--r--. 1 root root       401 Jul 21 15:04 ffb.bz2
+-rw-r--r--. 1 root root    508845 Jul 21 15:03 ffg.gz
+-rw-r--r--. 1 root root     76396 Jul 21 15:04 ffx.xz
+-rw-r--r--. 1 root root 524288000 Jul 21 15:03 ffz
+-rw-r--r--. 1 root root    508979 Jul 21 15:04 ffz.zip
+[root@rhel7 tmp]# ll|sort -n -k 5 -t " "
+total 1025080
+-rw-r--r--. 1 root root       401 Jul 21 15:04 ffb.bz2
+-rw-r--r--. 1 root root     76396 Jul 21 15:04 ffx.xz
+-rw-r--r--. 1 root root    508845 Jul 21 15:03 ffg.gz
+-rw-r--r--. 1 root root    508979 Jul 21 15:04 ffz.zip
+-rw-r--r--. 1 root root 524288000 Jul 21 15:03 ff
+-rw-r--r--. 1 root root 524288000 Jul 21 15:03 ffz
+
+
+=========================================================
+[root@rhel7 tmp]# ll batman
+total 8
+-rw-r--r--. 1 root root 6 Jul 21 16:06 file1
+-rw-r--r--. 1 root root 6 Jul 21 16:07 file2
+[root@rhel7 tmp]# gzip batman
+gzip: batman is a directory -- ignored
+[root@rhel7 tmp]# bzip2 batman
+bzip2: Input file batman is a directory.
+[root@rhel7 tmp]# xz batman
+xz: batman: Is a directory, skipping
+
+[root@rhel7 tmp]# gzip -r batman
+[root@rhel7 tmp]# ll
+total 2050748
+-rwxr-xr-x. 1 root root       125 Jul 21 15:13 a.sh
+drwxr-xr-x. 2 root root        36 Jul 21 16:09 batman
+-rw-r--r--. 1 root root       164 Jul 21 16:08 batman.zip
+-rw-r--r--. 1 root root 524288000 Jul 21 15:03 ff
+-rw-r--r--. 1 root root 524288000 Jul 21 15:14 ffb
+-rw-r--r--. 1 root root 524288000 Jul 21 15:57 ffg
+-rw-r--r--. 1 root root   2287017 Jul 21 15:57 ffg1.gz
+-rw-r--r--. 1 root root 524288000 Jul 21 15:14 ffx
+-rw-r--r--. 1 root root 524288000 Jul 21 15:14 ffz
+-rw-r--r--. 1 root root    508979 Jul 21 15:52 ffz.zip
+[root@rhel7 tmp]# cd batman
+[root@rhel7 batman]# ll
+total 8
+-rw-r--r--. 1 root root 32 Jul 21 16:06 file1.gz
+-rw-r--r--. 1 root root 32 Jul 21 16:07 file2.gz
+[root@rhel7 batman]# 
+
+
+
+
+
+#打包
+tar 
+打包 -c
+解包 -x
+文件名 -f 立刻跟上打包好的文件名
+
+tar -cf batman.rar /tmp/batman/*
+-j 	bzip2
+-z 	gzip
+
+[root@rhel7 batman]# tar -jcf batman.bz2.tar /tmp/batman/*
+[root@rhel7 batman]# ll
+total 24
+-rw-r--r--. 1 root root   268 Jul 21 16:17 batman.bz2.tar
+-rw-r--r--. 1 root root 10240 Jul 21 16:14 batman.tar
+-rw-r--r--. 1 root root    32 Jul 21 16:06 file1.gz
+-rw-r--r--. 1 root root    32 Jul 21 16:07 file2.gz
+
+[root@rhel7 batman]# tar -zcf batman.gz.tar /tmp/batman/*
+[root@rhel7 batman]# tar -zcf batman.gz.tar /tmp/batman/*
+tar: Removing leading `/' from member names
+[root@rhel7 batman]# ll
+total 28
+-rw-r--r--. 1 root root   268 Jul 21 16:17 batman.bz2.tar
+-rw-r--r--. 1 root root   601 Jul 21 16:18 batman.gz.tar
+-rw-r--r--. 1 root root 10240 Jul 21 16:14 batman.tar
+-rw-r--r--. 1 root root    32 Jul 21 16:06 file1.gz
+-rw-r--r--. 1 root root    32 Jul 21 16:07 file2.gz
+
+[root@rhel7 batman]# file batman.bz2.tar 
+batman.bz2.tar: bzip2 compressed data, block size = 900k
+[root@rhel7 batman]# file batman.gz.tar 
+batman.gz.tar: gzip compressed data, from Unix, last modified: Thu Jul 21 16:18:12 2016
+=============================================================
+
+tar -xf batman.tar -C /tmp/
+tar -zxf batman.gz.tar 
+tar -jxf batman.bz2.tar 
+
+=============================================================
+/tmp/batman/file1.gz
+/tmp/batman/file2.gz
+------------------------------
+tmp/batman/file1.gz
+tmp/batman/file2.gz
+------------------------------
+/tmp/batman/tmp/batman/file1.gz
+
+
+=========================================
+/tmp/batman/file1.gz
+/tmp/batman/file2.gz
+--------------------------------
+tmp/batman/file1.gz
+tmp/batman/file2.gz
+--------------------------------
+/tmp/test1/tmp/batman/file1.gz
+
+
+
+
+=======================================================
+[root@rhel7 tmp]# ll batman
+total 0
+[root@rhel7 tmp]# touch batman/file{1..2}
+[root@rhel7 tmp]# ll batman
+total 0
+-rw-r--r--. 1 root root 0 Jul 21 16:32 file1
+-rw-r--r--. 1 root root 0 Jul 21 16:32 file2
+[root@rhel7 tmp]# tar -zcf /tmp/batman.gz.tar /tmp/batman/*
+tar: Removing leading `/' from member names
+[root@rhel7 tmp]# rm -rf /tmp/batman/*
+[root@rhel7 tmp]# ll batman
+total 0
+[root@rhel7 tmp]# tar -zxf /tmp/batman.gz.tar -C /
+[root@rhel7 tmp]# ll
+total 2050752
+-rwxr-xr-x. 1 root root       125 Jul 21 15:13 a.sh
+drwxr-xr-x. 2 root root        30 Jul 21 16:34 batman
+-rw-r--r--. 1 root root       135 Jul 21 16:33 batman.gz.tar
+-rw-r--r--. 1 root root       164 Jul 21 16:08 batman.zip
+-rw-r--r--. 1 root root 524288000 Jul 21 15:03 ff
+-rw-r--r--. 1 root root 524288000 Jul 21 15:14 ffb
+-rw-r--r--. 1 root root 524288000 Jul 21 15:57 ffg
+-rw-r--r--. 1 root root   2287017 Jul 21 15:57 ffg1.gz
+-rw-r--r--. 1 root root 524288000 Jul 21 15:14 ffx
+-rw-r--r--. 1 root root 524288000 Jul 21 15:14 ffz
+-rw-r--r--. 1 root root    508979 Jul 21 15:52 ffz.zip
+-rw-r--r--. 1 root root         0 Jul 21 16:29 file1
+-rw-r--r--. 1 root root         0 Jul 21 16:29 file2
+-rw-r--r--. 1 root root         0 Jul 21 16:29 file3
+-rw-r--r--. 1 root root         0 Jul 21 16:29 file4
+-rw-r--r--. 1 root root         0 Jul 21 16:29 file5
+drwxr-xr-x. 3 root root        16 Jul 21 16:26 test1
+drwxr-xr-x. 3 root root        16 Jul 21 16:28 test2
+[root@rhel7 tmp]# ll batman
+total 0
+-rw-r--r--. 1 root root 0 Jul 21 16:32 file1
+-rw-r--r--. 1 root root 0 Jul 21 16:32 file2
+
+==================================================
+尽量不要解压到根目录，防止有用数据被覆盖掉。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

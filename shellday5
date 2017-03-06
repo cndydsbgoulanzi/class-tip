@@ -1,0 +1,138 @@
+shellday5
+1 awk
+2 脚本实现自动化配置dns服务
+3 脚本实现自动化配置apache并且自动化添加虚拟机主机
+========================================================================
+sed 
+	p	打印一行
+	a	指定行后添加一行
+	i	指定行前添加一行
+	s	一行当中的字符替换
+	d	删除一行
+----------------------------------
+要求：在文本的每一行开头添加#
+123
+123
+123
+-----
+2 123
+3 123
+4 123
+========================
+awk 高级语言
+AWK 是一种用于处理文本的编程语言工具
+
+awk 原理
+文本
+     1	root:x:0:0:root:/root:/bin/bash
+     2	bin:x:1:1:bin:/bin:/sbin/nologin
+     3	daemon:x:2:2:daemon:/sbin:/sbin/nologin
+     4	adm:x:3:4:adm:/var/adm:/sbin/nologin
+     5	lp:x:4:7:lp:/var/spool/lpd:/sbin/nologin
+     6	sync:x:5:0:sync:/sbin:/bin/sync
+     7	shutdown:x:6:0:shutdown:/sbin:/sbin/shutdown
+     8	halt:x:7:0:halt:/sbin:/sbin/halt
+     9	mail:x:8:12:mail:/var/spool/mail:/sbin/nologin
+    10	operator:x:11:0:operator:/root:/sbin/nologin
+awk
+
+root:x:0:0:root:/root:/bin/bash
+1.是哪一行
+2.以什么为分割，默认以空格			
+3.处理不同的分割部分——列
+$1 root
+$2 x
+$3 0
+
+读取所有的行
+
+输出
+
+==================
+cut -d " " -f 3 /tmp/passwd
+cut -d : -f 3 /tmp/passwd
+sort -t : -k 3  -n /tmp/passwd
+-------------------------------------
+awk [options] 'commands' files
+[options]
+	-F 指定分割符号
+	-v 设定变量	
+
+command 部分 :范围说明 {awk 命令语句 1;awk 命令语句 2;};范围说明 {awk 命令语句 1;awk 命令语句 2;}
+
+'BEGIN{;;};END{;;}'
+-----------------------------------
+NR 行数	当前记录的个数 ( 全部输入文件 )
+NF 每一行的列数	当前记录中的字段个数
+[root@rhel7 ~]# awk -F: '{print NF}' /tmp/passwd
+7
+7
+7
+7
+7
+7
+7
+7
+7
+[root@rhel7 ~]# awk -F: '{print NR}' /tmp/passwd
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+
+------------------------
+1.变量的值不需要用$来引用
+eg.
+	awk -F: -v NUM=3 '{print $NUM}' /etc/passwd
+			print $3===>每一行的第三列
+	awk -F: -v NUM=3 '{print NUM}' /etc/passwd
+			print NUM===>每一行打印出变量NUM的值
+
+2.将/etc/passwd/中的1到10行写入/tmp/passwd
+sed -i '1,10w /tmp/passwd' /etc/passwd
+3.截取出/tmp/passwd以冒号为分割的第三列
+awk -F: '{print $3}' /tmp/passwd
+4.在/tmp/passwd的每一行最后加入 good
+awk  '{print $NF"good"}' /tmp/passwd
+5.截取出/tmp/passwd以冒号为分割的第三列并在该列追加good
+awk -F: '{print $3"good"}' /tmp/passwd
+6.在/tmp/passwd的每一行以冒号为分割的第三列后加入good，显示前三列以#为分割 
+awk -F: '{print $1"#"$2"#"$3"good"}' /tmp/passwd
+7.从/tmp/passwd中截取不同的列，要求第一行截取第一列，第二行截取第二列，依次往后推。
+awk -F: 'BEGIN{i=1};{while (i<=NR){print $i;i++}}' /tmp/passwd
+awk -F: -v i=1 '{}' /tmp/passwd
+-------------------------------------------
+函数
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

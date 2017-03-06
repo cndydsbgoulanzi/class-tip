@@ -1,0 +1,402 @@
+day7 日志和计划任务
+----------------------------------
+日志
+1.日志的作用
+排错
+
+2.常用的日志
+/var/log/
+
+/var/log/cron 
+
+3.日志类型
+file 文件名
+1> 可查看的 ASCII 的日志
+• messages
+• 与程序同名的目录下, 会记录和该程序相关的一些日志
+2> 不可查看的 data 日志
+需要调用某些命令才能去查看对应的日志
+• wtmp <==last: 系统登录登出信息
+• btmp <==lastb: 错误的系统登录登出情况
+
+4.日志需要的程序和服务
+rsyslog 软件名称
+rsyslogd 服务名
+主要负责记录系统运作中 , kernel 或应用程序产生的各种讯息 , 讯息被写入系统日志
+logrotate
+主要在进行日志文件的轮替功能
+
+[root@rhel7 ~]# rpm -qa|grep rsyslog
+rsyslog-7.4.7-6.el7.x86_64
+rsyslog-mmjsonparse-7.4.7-6.el7.x86_64
+[root@rhel7 ~]# rpm -qa|grep logrotate
+logrotate-3.8.6-4.el7.x86_64
+----------------------------------------------
+[root@rhel6 ~]# rpm -qa|grep rsyslog
+rsyslog-5.8.10-8.el6.x86_64
+[root@rhel6 ~]# rpm -qa|grep logrotate
+logrotate-3.7.8-17.el6.x86_64
+=============================================
+[root@rhel7 ~]# rpm -ql rsyslog
+/etc/logrotate.d/syslog
+/etc/pki/rsyslog
+/etc/rsyslog.conf 	主配置文件
+/etc/rsyslog.d/*.conf	拓展配置文件
+/etc/sysconfig/rsyslog
+/usr/bin/rsyslog-recover-qi.pl
+/usr/lib/systemd/system/rsyslog.service
+--------------------------------------------
+[root@rhel6 ~]# rpm -ql rsyslog
+/etc/logrotate.d/syslog
+/etc/pki/rsyslog
+/etc/rc.d/init.d/rsyslog
+/etc/rsyslog.conf
+/etc/rsyslog.d
+/etc/sysconfig/rsyslog
+/sbin/rsyslogd
+=============================================================
+信息的级别
+man syslog
+       #define KERN_EMERG    "<0>"  /* system is unusable               */
+       #define KERN_ALERT    "<1>"  /* action must be taken immediately */
+       #define KERN_CRIT     "<2>"  /* critical conditions              */
+       #define KERN_ERR      "<3>"  /* error conditions                 */
+       #define KERN_WARNING  "<4>"  /* warning conditions               */
+       #define KERN_NOTICE   "<5>"  /* normal but significant condition */
+       #define KERN_INFO     "<6>"  /* informational                    */
+       #define KERN_DEBUG    "<7>"  /* debug-level messages             */
+emerg 紧急,处于 Panic 状态。通常应广播到所有用户;
+alert 告警,当前状态必须立即进行纠正。例如,系统数据库崩溃;
+crit 关键状态的警告。例如,硬件故障;
+err 其它错误;
+warn 警告;
+notice 注意;非错误状态的报告,但应特别处理;
+info 通报信息;
+debug 调试程序时的信息;
+none 通常调试程序时用,指示带有 none 级别的类型产生的信息无需送出。如
+*.debug;mail.none 表示调试时除邮件信息外其它信息都送出。
+-----------------------------------------------------------
+rsyslog服务记录的对象 “ 设施 ” (facility )
+
+auth 认证系统,即询问用户名和口令
+cron 系统定时系统执行定时任务时发出的信息
+daemon 某些系统的守护程序的 syslog,如由 in.ftpd 产生的 log
+kern 内核的 syslog 信息
+lpr 打印机的 syslog 信息
+mail 邮件系统的 syslog 信息
+mark 定时发送消息的时标程序
+news 新闻系统的 syslog 信息
+user 本地用户应用程序的 syslog 信息
+uucp uucp 子系统的 syslog 信息,unix to unix copy, unix 主机之间相关的通讯
+local0-7 种本地类型的 syslog 信息,这些信息可以又用户来定义
+*	代表以上各种设备
+----------------------------------------------------------
+配置文件的格式
+#### RULES ####
+设施. 级别 [;设施.级别]TAB 动作
+
+*.info;mail.none;authpriv.none;cron.none                /var/log/messages
+.info 代表info级别以及更高，情况更紧急的
+mail.none mail的所有信息都不要
+.=xxx:表示等于 xxx 级别的信息
+.!xxx:表示在 xxx 之外的等级的信息
+
+---------------------------------------------------------
+动作
+/var/log/messages 本地绝对路径 此文件必须事先建立
+@host	远程
+
+--------------------------------------------------------
+rhel7 启动服务	systemctl start rsyslog
+		systemctl stop rsyslog
+		systemctl restart rsyslog
+		systemctl status rsyslog
+rhel6 启动服务	service rsyslog start
+		service rsyslog stop
+		service rsyslog restart
+		service rsyslog status
+======================================================
+课堂练习
+1.在rhel6和rhel7中，创建/var/log/file.log来记录所有设施的所有等级信息。
+logger 命令用于产生日志:
+logger -p local3.info ‘KadeFor is testing the rsyslog and logger ‘
+
+[root@rhel6 ~]# vim /etc/rsyslog.conf 
+*.*							/var/log/file.log
+[root@rhel6 ~]# touch /var/log/file.log
+[root@rhel6 ~]# service rsyslog restart
+Shutting down system logger:                               [  OK  ]
+Starting system logger:                                    [  OK  ]
+[root@rhel6 ~]# ps -ef|grep rsyslog
+root     26409     1  0 11:52 ?        00:00:00 /sbin/rsyslogd -i /var/run/syslogd.pid -c 5
+root     26416  1858  0 11:52 pts/0    00:00:00 grep rsyslog
+[root@rhel6 ~]# cat /var/log/file.log 
+Jul 26 11:52:35 rhel6 kernel: imklog 5.8.10, log source = /proc/kmsg started.
+Jul 26 11:52:35 rhel6 rsyslogd: [origin software="rsyslogd" swVersion="5.8.10" x-pid="26409" x-info="http://www.rsyslog.com"] start
+[root@rhel6 ~]# logger -p local3.info 'KadeFor is testing the rsyslog and logger'
+[root@rhel6 ~]# cat /var/log/file.log 
+Jul 26 11:52:35 rhel6 kernel: imklog 5.8.10, log source = /proc/kmsg started.
+Jul 26 11:52:35 rhel6 rsyslogd: [origin software="rsyslogd" swVersion="5.8.10" x-pid="26409" x-info="http://www.rsyslog.com"] start
+Jul 26 11:54:31 rhel6 root: KadeFor is testing the rsyslog and logger
+
+
+=======================================================
+=======================================================
+/usr/sbin/logrotate 		将旧的日志文件移动成旧文件, 并重新建立一个新的空的档案来记录
+/etc/cron.daily/logrotate 	记录每天要进行的日志轮替的行为
+/etc/logrotate.conf
+/etc/logrotate.d/*		程序的配置文件
+------------------------------------------------------
+[root@rhel7 ~]# rpm -ql logrotate
+/etc/cron.daily/logrotate
+/etc/logrotate.conf	主配置文件
+/etc/logrotate.d
+/usr/sbin/logrotate
+/usr/share/doc/logrotate-3.8.6
+/usr/share/doc/logrotate-3.8.6/CHANGES
+/usr/share/doc/logrotate-3.8.6/COPYING
+/usr/share/man/man5/logrotate.conf.5.gz
+/usr/share/man/man8/logrotate.8.gz
+/var/lib/logrotate.status
+
+[root@rhel6 ~]# rpm -ql logrotate
+/etc/cron.daily/logrotate
+/etc/logrotate.conf
+/etc/logrotate.d
+/usr/sbin/logrotate
+/usr/share/doc/logrotate-3.7.8
+/usr/share/doc/logrotate-3.7.8/CHANGES
+/usr/share/doc/logrotate-3.7.8/COPYING
+/usr/share/man/man5/logrotate.conf.5.gz
+/usr/share/man/man8/logrotate.8.gz
+/var/lib/logrotate.status
+-----------------------------------------------------------------
+主配置文件 /etc/logrotate.conf
+man logrotate
+/var/log/test { <== 轮循的日志是谁
+daily <== 轮询周期多久
+rotate 4 <== 保留几个带时间戳的文件
+dateext <== 是否以时间戳为文件更名格式
+create <== 是否需要创建一个与原日志文件同名的新文件
+}
+
+
+=======================================
+课堂实验：
+将/var/log/file.log 设置日志轮询机制
+每天一轮换；
+保留4个日志；
+创建新文件；
+
+测试，强制轮换。
+logrotate -vf /etc/logrotate.conf
+-----------------------------------------
+[root@rhel7 ~]# vim /etc/logrotate.conf
+/var/log/file.log {
+    daily
+    rotate 4
+    create
+}
+
+[root@rhel7 ~]# ls /var/log/file*
+/var/log/file.log
+[root@rhel7 ~]# logrotate -vf /etc/logrotate.conf
+[root@rhel7 ~]# ls /var/log/file*
+/var/log/file.log  /var/log/file.log-20160726
+
+------------------------------------------------------------
+总结：
+rsyslog 卧底警察，监视着所有人，并将情报记录在/var/log/file.log中，他在黑暗中，以守护进程的方式运行，rhel6叫rsyslogd，rhel7叫rsyslog.service;
+logrotate 行政人员，负责后勤，记事本不够了，重新给一个；记事本够用，但就是想换新的，也行，以命令的方式运行，执行一次。
+思考？既然logrotate就是个命令，他是怎么做到每天都会去看看是否有日志要轮换的呢？
+
+----------------------------------------------------------------------------------------------------
+计划任务
+	软件	服务		命令	软件结构
+一次性 	at	atd.service	at	
+		atd
+周期性  cronie
+--------------------------------------------------------------
+一次性计划任务at
+/etc/at.deny 	只存在该文件，除了该文件中列出的用户之外，其他用户都能够使用at
+/etc/at.allow	只存在该文件，除了该文件中列出的用户之外，其他用户都不能使用at
+配置是立即生效的，不需要重启服务
+
+
+
+服务的启动关闭等
+rhel7 systemctl start atd
+rhel6 service atd start
+
+命令at
+用法 
+设置一次性任务	
+	at 时间 【15:02 2016-10-29】按下回车
+	>echo "Haha"|mail root
+	>ctrl+d
+查看计划任务
+	at -l
+	atq
+	at -c [num] 详细列出计划任务的内容
+删除计划任务
+	at -d
+=========================
+课堂实验
+1.设置一次性计划任务，需要在今天下午3:06发广播；查看一次性计划任务。
+[root@rhel7 ~]# at 03:06
+at> echo hi|wall
+at> <EOT>
+job 1 at Tue Jul 26 03:06:00 2016
+[root@rhel7 ~]# at -l
+1	Tue Jul 26 03:06:00 2016 a root
+[root@rhel7 ~]# 
+Broadcast message from root@rhel7 (Tue Jul 26 03:06:01 2016):
+
+hi
+
+[root@rhel7 ~]# at -l
+[root@rhel7 ~]# atq
+
+2.设置一次性计划任务，计划今天晚上8点29分系统自动关机；查看当前的计划任务；删除计划任务。
+[student@rhel7 ~]$ at 20:29
+at> shutdown -h now
+at> <EOT>
+job 4 at Tue Jul 26 20:29:00 2016
+You have mail in /var/spool/mail/student
+[student@rhel7 ~]$ at -l
+4	Tue Jul 26 20:29:00 2016 a student
+[student@rhel7 ~]$ at -c 4
+#!/bin/sh
+# atrun uid=1000 gid=1000
+# mail root 0
+umask 44
+
+此处省略。。。。
+
+${SHELL:-/bin/sh} << 'marcinDELIMITER1de82ff5'
+shutdown -h now
+
+marcinDELIMITER1de82ff5
+[student@rhel7 ~]$ at -d 4
+[student@rhel7 ~]$ at -l
+
+3.不允许student用户使用at命令
+
+[root@rhel7 ~]# vim /etc/at.deny
+[root@rhel7 ~]# cat /etc/at.deny
+student
+[root@rhel7 ~]# su - student
+Last login: Mon Jul 25 07:50:46 EDT 2016 on pts/3
+[student@rhel7 ~]$ at 07:52
+You do not have permission to use at.
+
+
+
+----------------------------------------------------------------------------------------------------
+计划任务
+	软件	服务		命令	软件结构
+一次性 	at	atd.service	at	
+		atd
+周期性  cronie  crond.service	crontab
+		crond
+--------------------------------------------------------------
+/etc/crontab	配置文件
+# For details see man 4 crontabs
+
+# Example of job definition:
+# .---------------- minute (0 - 59)
+# |  .------------- hour (0 - 23)
+# |  |  .---------- day of month (1 - 31)
+# |  |  |  .------- month (1 - 12) OR jan,feb,mar,apr ...
+# |  |  |  |  .---- day of week (0 - 6) (Sunday=0 or 7) OR sun,mon,tue,wed,thu,fri,sat
+# |  |  |  |  |
+# *  *  *  *  * user-name  command to be executed
+0 12 * * * 
+分钟 小时 日 月 周 用户 命令
+
+
+/etc/cron.allow
+/etc/cron.deny
+
+
+=========================================
+周期性计划任务
+服务启动
+rhel7	systemctl start crond
+rhel6	service crond start
+-------------------------------------
+crontab
+命令的用法
+#	设置一个周期性的计划任务
+	crontab -e 编辑当前用户
+	crontab -u student -e
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~`
+0 12 * * * /usr/bin/echo "eat"|/usr/bin/wall
+代表意义 分钟 小时 日期 月份 周  命令
+数字范围 0-59 0-23 1-31 1-12 0-7 命令
+特殊字 代表意义
+*( 星号 ) 代表任何时刻
+,( 逗号 ) 代表分隔时段
+-( 减号 ) 代表一段时间范围
+/n( 斜线 ) n 代表数字 , 『每隔 n 单位间隔』 , 例每五分钟进行一次
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#	查看当前用户中的周期性计划任务
+	crontab -l
+
+#	删除但前用户所有的周期性计划任务
+	crontab -r
+
+#	删除某一个周期性计划任务
+	crontab -e去修改	
+
+
+
+
+=================================
+课堂练习
+1.每天下午四点零七分广播hi;查看周期性计划任务
+[student@rhel7 ~]$ crontab -e
+no crontab for student - using an empty one
+crontab: installing new crontab
+[student@rhel7 ~]$ crontab -l
+7 16 * * * /usr/bin/echo 'hi'|/usr/bin/wall
+
+2.每个月的第2天下午 2 点 15 分,将/etc 目录打包压缩成/tmp/etc.tar.bz2 文件。
+15 2 2 * *
+
+3.周一到周五的晚上 10 点,将/var 目录打包压缩成/tmp/var.tar.bz2 文件。
+0 22 * * 1-5
+
+
+4.每天 0 点 20 分,3 点 20 分,6 点2 0 分...21 点 20 分,就输出 “ 休息一会 ” 到终端上。
+20 0-23/3 * * * 
+
+
+5.每周日的 5 点 5 分提醒自己去跑步。
+5 5 * * sun 
+
+
+6.删除某一个计划任务；删除全部的计划任务
+
+
+7.root用户不允许student使用crontab
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

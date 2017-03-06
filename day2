@@ -1,0 +1,342 @@
+2016.07.19 第二关——用户和组
+
+1.添加2个组，一个组名为justice，一个组名为ninja。
+2.添加4个用户，用户 superman,batman,wonderwoman,greenlantern密码uplooking；附加组为justice。
+3.添加4个用户，用户 leo,raph,mikey,don 密码uplooking，附加组为ninja。
+4.mikey用户总是在系统里搞破坏，root决定封他的号，让他不能登陆。过了几天，再解封。
+5.leo想加入justice，root同意了，将justice作为附加组添加给leo。
+6.don整天搞创造，root要求他的密码要更安全，所以将他的密码设置成7天之后要换密码，并且密码过期前3天要提醒他，如果密码过期后2天还没有设置新密码，那么就封锁don账户。
+7.batman总是喜欢修改密码，没事就在修改密码，而使用该batman账户的人有好几个，比如蝙蝠侠，蝙蝠侠的管家，蝙蝠侠的助手罗宾等等。所以root决定将batman账户的密码的最小存活期改为10天。也就是说10天之内batman账户不能修改密码。
+8.leo想退出justice,root帮他设置一下。
+9.superman想把密码改为uplooking123，让他自己改。发现改不了，密码太简单了，自己去想一个复杂的密码。
+10.删除实验中所有的组和用户。
+
+
+===============================================
+创建组		groupadd	/etc/group
+创建新用户	useradd		/etc/passwd
+创建密码		passwd		/etc/shadow	
+--------------------------
+只有root用户能够创建组和用户；
+root用户可以修改所有人的密码；
+普通用户只能修改自己的密码。
+------------------------------------------------
+groupadd  [组名]
+-g gid 指定gid号
+
+useradd [用户名]
+-u uid 指定uid
+
+passwd [用户名]
+---------------------------
+测试 
+ssh superman@172.25.0.10
+查看用户信息
+id 
+[root@rhel7 ~]# id superman
+uid=1002(superman) gid=1004(superman) groups=1004(superman)
+======================================================
+rhel7	uid gid 	rhel6
+root	0		0
+系统用户 1-999		1-499
+普通用户 1000-65535 	500-65535
+-----------------------------------------------------
+
+修改用户属性 usermod
+usermod 
+-G 修改附加组 justice,ninja
+-aG 添加附加组
+root@rhel7 ~]# usermod -G justice aa
+[root@rhel7 ~]# id aa
+uid=1200(aa) gid=1200(test) groups=1200(test),1002(justice)
+root@rhel7 ~]# usermod -G "" aa
+[root@rhel7 ~]# id aa
+uid=1200(aa) gid=1200(test) groups=1200(test)
+
+root@rhel7 ~]# id aa
+uid=1200(aa) gid=1200(test) groups=1200(test),1004(superman)
+[root@rhel7 ~]# usermod -aG justice aa
+root@rhel7 ~]# id aa
+uid=1200(aa) gid=1200(test) groups=1200(test),1002(justice),1004(superman)
+
+======================================
+删除用户和组
+userdel [用户名称]
+-r 删除家目录
+[root@rhel7 ~]# userdel aa
+[root@rhel7 ~]# ls /home
+aa  lhb  student  superman
+[root@rhel7 ~]# rm -rf /home/aa
+[root@rhel7 ~]# ls /home
+lhb  student  superman
+[root@rhel7 ~]# userdel -r superman
+[root@rhel7 ~]# ls /home
+lhb  student
+
+groupdel [组名称]
+[root@rhel7 ~]# groupdel justice
+[root@rhel7 ~]# grep justice /etc/group
+==================================================
+
+groups 显示当前用户所属组的信息
+
+[superman@rhel7 ~]$ groups
+superman justice
+
+[root@rhel7 ~]# groups
+root
+
+
+=====================================================
+=====================================================
+与用户和组有关的配置文件
+
+/etc/passwd 系统中的账号信息
+/etc/shadow 存放密码及其策略相关信息
+/etc/group 存放用户组的信息
+/etc/gshadow 存放用户组的密码及其策略相关信息
+/etc/default/useradd 创建新用户时默认的配置信息
+/etc/skel/* Directory containing default files.
+/etc/login.defs 用户和组默认的配置信息
+/etc/shells 该文件记录着合法的 shell 版本
+======================================================
+/etc/passwd 系统中的账号信息
+1.7列，以冒号分割
+帐号名称:x:uid用户标识符:gid初始组标识符:解释说明:用户家目录:shell
+/sbin/nologin
+#通过命令去修改该文件的内容
+usermod -l::-u:-g:-c:-s
+---------------------------------------------------
+gdm:x:42:42::/var/lib/gdm:/sbin/nologin
+don:x:1009:1009::/home/don:/bin/bash
+
+========================================
+/etc/shells
+[root@rhel7 ~]# cat /etc/shells
+/bin/sh
+/bin/bash
+/sbin/nologin
+/usr/bin/sh
+/usr/bin/bash
+/usr/sbin/nologin
+/bin/tcsh
+/bin/csh
+=================================================
+将superman的shell改为/sbin/nologin
+1.修改配置文件/etc/passwd
+/sbin/nologin
+用户将无法登陆。
+[kiosk@foundation0 Desktop]$ ssh superman@172.25.0.10
+This account is currently not available.
+将superman的shell改为/bin/bash
+2.通过命令修改chsh usermod
+[root@rhel7 ~]# chsh -s /bin/bash superman
+Changing shell for superman.
+Shell changed.
+[root@rhel7 ~]# grep superman /etc/passwd
+superman:x:1002:1002::/home/superman:/bin/bash
+
+[kiosk@foundation0 Desktop]$ ssh superman@172.25.0.10
+superman@172.25.0.10's password: 
+Last login: Tue Jul 19 14:48:17 2016 from 172.25.0.250
+[superman@rhel7 ~]$ 
+
+==============================================================
+/etc/shadow 存放密码及其策略相关信息
+1.9列，冒号为分隔
+superman:$6$fqB9UdwU$hFaGfMpwG.HBXUQBO2btyHH1yLraY1bZUA.GcNs.iU4diSvgYgOhCc0dFS2F.r9ASL2Hd4Bejk.Q6zd0GfQnF1:17001:0:99999:7:::
+#1 用户名
+#2 加了密的密码
+
+#3 17001 账户创建日期，天数表示的，距离1970年1月1日
+	[kiosk@foundation0 Desktop]$ echo $(($(date --date="2016/07/19" +"%s")/86400+1))
+	17001
+#4 0 密码不能修改的天数				
+#5 99999 什么时间必须修改密码	密码失效日期   	99999/365=273年
+#6 7 提醒你要修改密码， 		密码失效前的提醒日
+#7 2 				密码失效后的宽限时间 
+#8 帐号失效日，天数表示的，距离1970年1月1日
+#9 暂时没有用，保留段
+
+===============================================================
+让用户无法登陆服务器：
+1./sbin/nologin
+2.修改用户密码，不告诉他
+3.让账户失效——chage命令或者修改配置文件
+[root@rhel7 ~]# chage superman
+Changing the aging information for superman
+Enter the new value, or press ENTER for the default
+
+	Minimum Password Age [0]: 
+	Maximum Password Age [99999]: 
+	Last Password Change (YYYY-MM-DD) [2016-07-19]: 
+	Password Expiration Warning [7]: 
+	Password Inactive [-1]: 
+	Account Expiration Date (YYYY-MM-DD) [-1]: 2016-07-18
+[root@rhel7 ~]# grep superman /etc/shadow
+superman:$6$fqB9UdwU$hFaGfMpwG.HBXUQBO2btyHH1yLraY1bZUA.GcNs.iU4diSvgYgOhCc0dFS2F.r9ASL2Hd4Bejk.Q6zd0GfQnF1:17001:0:99999:7::17000:
+
+测试
+[kiosk@foundation0 Desktop]$ ssh superman@172.25.0.10
+superman@172.25.0.10's password: 
+Your account has expired; please contact your system administrator
+Connection closed by 172.25.0.10
+
+
+
+4.锁定密码——usermod命令/passwd命令/修改配置文件
+[root@rhel7 ~]# usermod -L superman
+[root@rhel7 ~]# grep superman /etc/shadow
+superman:!$6$fqB9UdwU$hFaGfMpwG.HBXUQBO2btyHH1yLraY1bZUA.GcNs.iU4diSvgYgOhCc0dFS2F.r9ASL2Hd4Bejk.Q6zd0GfQnF1:17001:0:99999:7:::
+
+
+测试：
+[kiosk@foundation0 Desktop]$ ssh superman@172.25.0.10
+superman@172.25.0.10's password: 
+Permission denied, please try again.
+
+[root@rhel7 ~]# usermod -U superman
+[root@rhel7 ~]# grep superman /etc/shadow
+superman:$6$fqB9UdwU$hFaGfMpwG.HBXUQBO2btyHH1yLraY1bZUA.GcNs.iU4diSvgYgOhCc0dFS2F.r9ASL2Hd4Bejk.Q6zd0GfQnF1:17001:0:99999:7:::
+
+测试：
+superman@172.25.0.10's password: 
+Last failed login: Tue Jul 19 15:42:30 CST 2016 from 172.25.0.250 on ssh:notty
+There was 1 failed login attempt since the last successful login.
+Last login: Tue Jul 19 14:50:23 2016 from 172.25.0.250
+==========================================================================================
+/etc/group 存放用户组的信息
+1.4个字段，冒号分隔
+2.组名:x:gid:哪些用户将该组设置为附加组
+
+justice:x:1201:superman,batman,wonderwoman,greenlantern
+ninja:x:1202:raph,mikey,don,leo
+superman:x:1002:
+batman:x:1203:
+wonderwoman:x:1004:
+greenlantern:x:1005:
+leo:x:1006:
+raph:x:1007:
+mikey:x:1008:
+don:x:1009:
+============================================================================================
+groupmod 
+==================================================================================
+/etc/gshadow
+justice:!::superman,batman,wonderwoman,greenlantern
+ninja:!::raph,mikey,don,leo
+===========================================================================================================
+
+
+su 用来切换用户
+su - 【用户名】
+[root@rhel7 ~]# pwd
+/root
+[root@rhel7 ~]# su - superman
+Last login: Tue Jul 19 16:07:43 CST 2016 on pts/2
+[superman@rhel7 ~]$ pwd
+/home/superman
+
+
+su 【用户名】
+[root@rhel7 ~]# pwd
+/root
+[root@rhel7 ~]# su superman
+[superman@rhel7 root]$ pwd
+/root
+
+su切换到普通户不需要输入密码
+普通用户切换是要密码的，需要输入切换后用户的密码
+
+
+
+
+
+sudo 
+1.需要权限	 visudo
+2.只需输入自己的密码
+
+
+## Allow root to run any commands anywhere
+root    ALL=(ALL)       ALL
+superman ALL=(ALL)      /usr/bin/passwd
+用户名   来自位置=(变成谁) 能够执行的命令
+
+
+[superman@rhel7 ~]$ sudo passwd root
+
+We trust you have received the usual lecture from the local System
+Administrator. It usually boils down to these three things:
+
+    #1) Respect the privacy of others.
+    #2) Think before you type.
+    #3) With great power comes great responsibility.
+
+[sudo] password for superman: 
+Changing password for user root.
+New password: 
+BAD PASSWORD: The password fails the dictionary check - it is based on a dictionary word
+Retype new password: 
+passwd: all authentication tokens updated successfully.
+
+================================================
+实验：让superman能够修改root用户的密码。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

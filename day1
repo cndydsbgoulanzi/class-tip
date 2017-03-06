@@ -1,0 +1,476 @@
+#2016.07.18 第一关——linux基础命令
+
+在真机上打开虚拟机	rht-vmctl start rhel7
+
+在真机上远程登陆到虚拟机	ssh root@172.25.0.10 rhel7   密码都是uplooking
+在虚拟机中关闭虚拟机		[root@rhel7 doc]# shutdown -h now
+
+
+在真机上设置录屏时间没有限制
+[kiosk@foundation0 Desktop]$ gsettings set org.gnome.settings-daemon.plugins.media-keys max-screencast-length "uint32 0"
+
+==================================
+概要：
+命令简介		ls\cd\pwd
+对文件的基本操作	touch\rm\mkdir\rmdir\cp\mv
+对文件内容的基本操作	gedit\Liber Office\vim\echo
+帮助			man /usr/share/doc 
+==================================
+内核 
+shell
+用户 
+为什么用命令？
+快、减少机器性能的消耗
+------------------------
+[root@rhel7 ~]#
+[]
+root	用户名 无所不能
+@	分割符
+rhel7	主机名
+~	当前路径 ~当前用户的家目录
+	[root@rhel7 tmp]# 代表root用户当前在/tmp目录下
+#	命令提示符号
+	[student@rhel7 ~]$ 如果是普通用户 $
+-------------------------------------------
+命令区分大小写
+一般格式：
+命令 选项 参数
+	选项可以有多个；
+	参数和选项可以调换位置；
+
+
+
+1.ls
+list的缩写
+-a	查看所有文件，包括隐藏文件
+eg.
+[student@rhel7 ~]$ ls -a
+.  ..  .bash_logout  .bash_profile  .bashrc  .cache  .config  .mozilla  .ssh
+
+-l	详细列出文件信息，属性
+[student@rhel7 ~]$ ls -la
+total 16
+drwx------. 6 student student 4096 Jul  2  2015 .
+drwxr-xr-x. 4 root    root      30 Jul 17 23:20 ..
+-rw-r--r--. 1 student student   18 Jan 29  2014 .bash_logout
+-rw-r--r--. 1 student student  193 Jan 29  2014 .bash_profile
+-rw-r--r--. 1 student student  231 Jan 29  2014 .bashrc
+drwxrwxr-x. 3 student student   17 Jul  2  2015 .cache
+drwxrwxr-x. 3 student student   17 Jul  2  2015 .config
+drwxr-xr-x. 4 student student   37 Jul  2  2015 .mozilla
+drwx------. 2 student student   28 Jul  2  2015 .ssh
+
+[student@rhel7 ~]$ ls -l /tmp
+total 0
+drwx------. 3 root root 16 Jul 17 22:51 systemd-private-4Gzosx
+drwx------. 3 root root 16 Jul 17 22:50 systemd-private-Xpwmlb
+
+-d	查看目录本身属性
+[root@rhel7 ~]# ls -ld /tmp 
+drwxrwxrwt. 10 root root 4096 Jul 17 23:33 /tmp
+
+-h	以人性化的方式来显示文件的大小
+[root@rhel7 ~]# ls -ldh /tmp 
+
+-R	递归显示该目录下的所有文件
+drwxrwxrwt. 10 root root 4.0K Jul 17 23:33 /tmp
+[root@rhel7 student]# ls -R
+.:
+b0  b1  b10  b2  b3  b4  b5  b6  b7  b8  b9  test1  test2
+
+./test1:
+
+./test2:
+
+=============================================
+cd
+	change directory
+cd 	不跟任何参数，切换到家目录
+cd 路径 切换到指定路径
+	~	代表自己的家目录
+	..	上一级目录
+	. 	当前路径
+	-	上一次所在路径
+=============================================
+pwd	
+显示出当前的绝对路径
+
+[root@rhel7 student]# cd /tmp/student/
+[root@rhel7 student]# pwd
+/tmp/student
+
+[root@rhel7 student]# cd /home/student/
+[root@rhel7 student]# pwd
+/home/student
+
+============================================
+对文件的基本操作	touch\rm\mkdir\rmdir\cp\mv
+
+1.touch
+	创建空文件
+touch 文件的名称
+	[root@rhel7 student]# touch a\ 1
+	-rw-r--r--. 1 root root 0 Jul 18 01:45 a 1
+	b1 b2...b100
+	[root@rhel7 student]# touch b{1..100}
+	创建多个有规律的文件
+	[root@rhel7 student]# touch c{1,3,5}
+特殊字符*
+	代表匹配任意字符
+	[root@rhel7 student]# ll c*
+	-rw-r--r--. 1 root root 0 Jul 18 01:49 c1
+	-rw-r--r--. 1 root root 0 Jul 18 01:49 c3
+	-rw-r--r--. 1 root root 0 Jul 18 01:49 c5
+特殊字符？
+	代表匹配一位字符
+[root@rhel7 student]# ll b?
+-rw-r--r--. 1 root root 0 Jul 18 01:47 b1
+-rw-r--r--. 1 root root 0 Jul 18 01:47 b2
+-rw-r--r--. 1 root root 0 Jul 18 01:47 b3
+-rw-r--r--. 1 root root 0 Jul 18 01:47 b4
+-rw-r--r--. 1 root root 0 Jul 18 01:47 b5
+-rw-r--r--. 1 root root 0 Jul 18 01:47 b6
+-rw-r--r--. 1 root root 0 Jul 18 01:47 b7
+-rw-r--r--. 1 root root 0 Jul 18 01:47 b8
+-rw-r--r--. 1 root root 0 Jul 18 01:47 b9
+-rw-r--r--. 1 root root 0 Jul 18 01:49 ba
+-rw-r--r--. 1 root root 0 Jul 18 01:49 bb
+-rw-r--r--. 1 root root 0 Jul 18 01:49 bc
+-rw-r--r--. 1 root root 0 Jul 18 01:49 bd
+-rw-r--r--. 1 root root 0 Jul 18 01:49 be
+-rw-r--r--. 1 root root 0 Jul 18 01:49 bf
+-rw-r--r--. 1 root root 0 Jul 18 01:49 bg
+-rw-r--r--. 1 root root 0 Jul 18 01:49 bh
+-rw-r--r--. 1 root root 0 Jul 18 01:49 bi
+-rw-r--r--. 1 root root 0 Jul 18 01:49 bj
+================================================
+rm 删除
+	root 默认会提醒	
+-f	强制删除，没有提醒
+	[root@rhel7 student]# rm -f b?
+	普通用户默认没有提醒
+-r	递归删除目录以及目录底下的文件或目录
+	[root@rhel7 student]# mkdir test1
+	[root@rhel7 student]# touch /tmp/student/test1/1
+	[root@rhel7 student]# ls /tmp/student/test1
+	1
+	[root@rhel7 student]# rm -f /tmp/student/test1
+	rm: cannot remove ‘/tmp/student/test1’: Is a directory
+	[root@rhel7 student]# rm -rf /tmp/student/test1
+==================================================
+mkdir 创建目录
+mkdir /tmp/student/test1
+-p	递归创建目录
+[root@rhel7 student]# mkdir /tmp/student/test2/A -p
+
+==================================================
+rmdir 删除目录，只能删除空目录
+[root@rhel7 student]# rmdir /tmp/student/test2
+rmdir: failed to remove ‘/tmp/student/test2’: Directory not empty
+[root@rhel7 student]# rmdir /tmp/student/test2/A/
+
+================================================
+cp 复制
+
+将/tmp/student/目录下以b开头的所有文件复制到/tmp/student/test2/
+[root@rhel7 student]# cp /tmp/student/b* /tmp/student/test2/
+
+将/tmp/student/目录下的test1目录以及该目录下的所有文件复制到/tmp/student/test2
+ 
+-r	递归复制	
+[root@rhel7 student]# cp /tmp/student/test1/ /tmp/student/test2/
+cp: omitting directory ‘/tmp/student/test1/’
+[root@rhel7 student]# cp /tmp/student/test1/ /tmp/student/test2/ -r
+-p	保留文件原有属性
+
+===================================================
+mv	移动目录或文件
+mv 需要移动的文件路径 目标目录路径
+[root@rhel7 student]# mv b0 b1 test2
+[root@rhel7 student]# ls test2
+b0  b1
+	修改文件名称
+[root@rhel7 student]# mv b10 a10
+[root@rhel7 student]# ls
+a10  b2  b3  b4  b5  b6  b7  b8  b9  test1  test2 	
+===================================================
+===================================================
+针对文件内容的操作
+查看	
+cat tac	查看小文件
+	[root@rhel7 ~]# cat /tmp/b
+	hi
+	hello
+	[root@rhel7 ~]# tac /tmp/b
+	hello
+	hi
+head tail
+-n	指定显示的行数 
+-f	动态地查看
+	[root@rhel7 ~]# head /etc/passwd
+	root@rhel7 ~]# tail /var/log/messages
+	root@rhel7 ~]# head /etc/passwd -n 1
+	oot:x:0:0:root:/root:/bin/bash
+	root@rhel7 ~]# tail -f /var/log/messages
+
+more less
+	[root@rhel7 ~]# more /var/log/messages 
+enter 	向下翻页
+q	退出
+	[root@rhel7 ~]# less /var/log/messages
+比more多了搜索的功能
+:/关键字
+
+==================================================
+编辑	gedit\Liber Office\vim\echo
+
+----------------------------------------
+编辑
+vim [文件的名称]	
+echo 回显
+	echo hi > /tmp/b 覆盖原有内容
+	echo hello >> /tmp/b 追加内容到文件末尾
+
+=================================================
+=================================================
+过滤 grep cut
+grep 截取行
+截取包含root关键字的行
+	[root@rhel7 ~]# grep root /etc/passwd
+	root:x:0:0:root:/root:/bin/bash
+	operator:x:11:0:operator:/root:/sbin/nologin
+截取以root开头的行
+	[root@rhel7 ~]# grep ^root /etc/passwd
+	root:x:0:0:root:/root:/bin/bash
+截取以bash结尾的行
+	[root@rhel7 ~]# grep bash$ /etc/passwd
+	root:x:0:0:root:/root:/bin/bash
+	student:x:1000:1000:student:/home/student:/bin/bash
+	lhb:x:1001:1001::/home/lhb:/bin/bash
+-------------------------------------------
+cut 截取列
+	/etc/passwd 以“:”为分割
+	[root@rhel7 ~]# cut -d":" -f3 /etc/passwd
+-d 	指定文件的列是以什么做分割
+-f	指定要截取出的是第几列
+--------------------------------------------------
+统计wc
+[root@rhel7 tmp]# wc /tmp/b
+ 3  6 20 /tmp/b
+行数 单词 字符
+---------------------------------------
+排序 sort
+	将/tmp/b文件按照数字大小，依照第二列，从小到大排序
+-t	指定文件的列是以什么做分割
+-n	指定排序按照数字大小
+-r 	倒序
+-k	指定第几列
+
+	[root@rhel7 tmp]# sort -t : -n -k 2 /tmp/b
+
+	tom:1:20
+	tom:1:20
+	jack:2:19
+	jack:2:19
+	batman:3:30
+	[root@rhel7 tmp]# sort -t : -n -r -k 2 /tmp/b
+	batman:3:30
+	jack:2:19
+	jack:2:19
+	tom:1:20
+	tom:1:20
+-------------------------------------------------------
+剔除重复 uniq
+只能剔除靠在一起的重复的行
+
+	[root@rhel7 tmp]# sort -t : -n -k 2 /tmp/b|uniq
+
+	tom:1:20
+	jack:2:19
+	batman:3:30
+======================================================================
+帮助命令
+[root@rhel7 tmp]# man -k touch
+/usr/share/doc
+
+
+=================================================
+命令的分类
+内部 shell内部可以调用的一些间的命令，echo,cd,pwd
+外部 通过其他软件安装的。
+[root@rhel7 ~]# type echo
+echo is a shell builtin
+[root@rhel7 ~]# type cd
+cd is a shell builtin
+[root@rhel7 ~]# type pwd
+pwd is a shell builtin
+[root@rhel7 ~]# type man
+man is /usr/bin/man
+
+===========================
+针对内部命令的帮助
+
+help
+[root@rhel7 ~]# help echo
+
+针对外部命令的帮助
+--help
+=====================================
+时间和时区
+显示时间
+修改时间
+修改时区
+----------------------------------------------------------
+rhel6
+
+date
+# 显示当前时间
+[root@rhel6 ~]# date
+Tue Jul 19 10:33:00 CST 2016
+# 显示日期
+[root@rhel6 ~]# date +"%Y/%m/%d"
+2016/07/19
+[root@rhel6 ~]# date +"%y/%m/%d"
+16/07/19
+[root@rhel6 ~]# date +"%y-%m-%d"
+16-07-19
+# 显示日期和时间
+[root@rhel6 ~]# date
+Tue Jul 19 10:36:20 CST 2016
+[root@rhel6 ~]# date +"%y-%m-%d %H:%M:%S"
+16-07-19 10:36:49
+# 设置时间
+[root@rhel6 ~]# date -s "2016-11-01 12:2:12"
+Tue Nov  1 12:02:12 CST 2016
+
+硬件时间
+hwclock
+
+hwclock --systohc 将硬件时间与系统时间同步 , 以系统为基准
+hwclock --hctosys 将系统时间与硬件时间同步 , 以硬件为基准
+[root@rhel6 ~]# date
+Tue Nov  1 12:04:34 CST 2016
+[root@rhel6 ~]# hwclock
+Tue 19 Jul 2016 10:40:03 CST  -0.371798 seconds
+[root@rhel6 ~]# hwclock --hctosys
+[root@rhel6 ~]# date
+Tue Jul 19 10:41:17 CST 2016
+
+
+时区设置 tzselect
+
+[root@rhel6 ~]# tzselect
+Please identify a location so that time zone rules can be set correctly.
+Please select a continent or ocean.
+ 1) Africa
+ 2) Americas
+ 3) Antarctica
+ 4) Arctic Ocean
+ 5) Asia
+ 6) Atlantic Ocean
+ 7) Australia
+ 8) Europe
+ 9) Indian Ocean
+10) Pacific Ocean
+11) none - I want to specify the time zone using the Posix TZ format.
+#? 5
+Please select a country.
+ 1) Afghanistan		  18) Israel		    35) Palestine
+ 2) Armenia		  19) Japan		    36) Philippines
+ 3) Azerbaijan		  20) Jordan		    37) Qatar
+ 4) Bahrain		  21) Kazakhstan	    38) Russia
+ 5) Bangladesh		  22) Korea (North)	    39) Saudi Arabia
+ 6) Bhutan		  23) Korea (South)	    40) Singapore
+ 7) Brunei		  24) Kuwait		    41) Sri Lanka
+ 8) Cambodia		  25) Kyrgyzstan	    42) Syria
+ 9) China		  26) Laos		    43) Taiwan
+10) Cyprus		  27) Lebanon		    44) Tajikistan
+11) East Timor		  28) Macau		    45) Thailand
+12) Georgia		  29) Malaysia		    46) Turkmenistan
+13) Hong Kong		  30) Mongolia		    47) United Arab Emirates
+14) India		  31) Myanmar (Burma)	    48) Uzbekistan
+15) Indonesia		  32) Nepal		    49) Vietnam
+16) Iran		  33) Oman		    50) Yemen
+17) Iraq		  34) Pakistan
+#? 9
+Please select one of the following time zone regions.
+1) east China - Beijing, Guangdong, Shanghai, etc.
+2) Heilongjiang (except Mohe), Jilin
+3) central China - Sichuan, Yunnan, Guangxi, Shaanxi, Guizhou, etc.
+4) most of Tibet & Xinjiang
+5) west Tibet & Xinjiang
+#? 1
+
+The following information has been given:
+
+	China
+	east China - Beijing, Guangdong, Shanghai, etc.
+
+Therefore TZ='Asia/Shanghai' will be used.
+Local time is now:	Tue Jul 19 11:06:00 CST 2016.
+Universal Time is now:	Tue Jul 19 03:06:00 UTC 2016.
+Is the above information OK?
+1) Yes
+2) No
+#? 1
+
+You can make this change permanent for yourself by appending the line
+	TZ='Asia/Shanghai'; export TZ
+to the file '.profile' in your home directory; then log out and log in again.
+
+Here is that TZ value again, this time on standard output so that you
+can use the /usr/bin/tzselect command in shell scripts:
+Asia/Shanghai
+
+
+
+
+==================================================
+rhel7 设置时间时区用一个命令timedatectl
+
+
+[root@rhel7 ~]# timedatectl
+      Local time: Mon 2016-07-18 22:42:31 EDT 本地时间，系统时间 EDT时区
+  Universal time: Tue 2016-07-19 02:42:31 UTC 世界时
+        RTC time: Tue 2016-07-19 02:42:31	硬件时间
+        Timezone: America/New_York (EDT, -0400) 时区
+     NTP enabled: yes				时间同步是否打开
+NTP synchronized: no
+ RTC in local TZ: no
+      DST active: yes				
+ Last DST change: DST began at
+                  Sun 2016-03-13 01:59:59 EST
+                  Sun 2016-03-13 03:00:00 EDT
+ Next DST change: DST ends (the clock jumps one hour backwards) at
+                  Sun 2016-11-06 01:59:59 EDT
+                  Sun 2016-11-06 01:00:00 EST
+
+1.修改时区
+[root@rhel7 ~]# timedatectl set-timezone Asia/Shanghai
+[root@rhel7 ~]# timedatectl
+      Local time: Tue 2016-07-19 10:51:36 CST
+  Universal time: Tue 2016-07-19 02:51:36 UTC
+        RTC time: Tue 2016-07-19 02:51:36
+        Timezone: Asia/Shanghai (CST, +0800)
+     NTP enabled: yes
+NTP synchronized: no
+ RTC in local TZ: no
+      DST active: n/a
+
+2.修改时间
+[root@rhel7 ~]# timedatectl set-time "14:2:02"
+[root@rhel7 ~]# timedatectl
+      Local time: Tue 2016-07-19 14:02:03 CST
+  Universal time: Tue 2016-07-19 06:02:03 UTC
+        RTC time: Tue 2016-07-19 06:02:03
+        Timezone: Asia/Shanghai (CST, +0800)
+     NTP enabled: yes
+NTP synchronized: no
+ RTC in local TZ: no
+      DST active: n/a
+
+3.硬件与系统时间同步
+[root@rhel7 ~]# timedatectl set-local-rtc 1
+
+============================================================
+

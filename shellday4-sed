@@ -1,0 +1,160 @@
+Sed 命令
+WHAT
+
+sed( 意为流编辑器 , 源自英语 “ stream editor” 的缩写 ) 是 Unix 常见的命令行程序。 sed 用来把文档或字符串里面的文字经过一系列编辑命令转换为另一种格式输出。 sed 通常 用来匹配一个或 多个正则表达式的文本进行处理。 分号 (;) 可以用作分隔命令的指示符。尽管 sed 脚本固有的很多限制 , 一连串的 sed 指令加起来可以编程像 仓 库番、快打砖块、甚至俄罗斯方块等电脑游戏的复杂程序。
+HOW
+语法模式
+
+• 命令行模式 • 脚本模式
+命令行模式
+
+sed 流编辑器 针对行进行操作的
+
+原理 
+    读文件---一行一行读
+    存入缓存空间
+    匹配行---是---动作--继续读取
+         ---不是------ 继续读取    
+    读到最后一行为止
+    输出
+命令格式
+    sed [-options] '[cmd]' filename
+    sed [-options] '[哪一行][干什么]' filename
+参数options
+    -n 不输出所有的行
+    -i 直接修改目标文件
+    -e 连接多个cmd
+cmd
+    地址（哪一行）
+        1    第一行
+        2,3    从第二行到第三行
+        $    最后一行
+        正则表达式
+        /^root/    以root开头的行
+        /bin$/    以bin结尾的行
+    函数（干什么）
+        p    打印，输出到屏幕上
+        d    删除
+        s      替换
+        a    当前行的行后，添加一行    
+        i    当前行的行前，添加一行
+ 
+~~~~~~~~~~~~
+
+课堂练习1
+
+1.下载mysqlbinlog.row文件
+2.打印第三行
+3.打印1到5行
+4.打印最后一行
+5.打印30到最后一行
+2.打印包含“BEGIN”的行
+3.打印包含“COMMIT”的行
+4.打印以“###”开头的行
+5.删除每一行的“### ”
+6.删除所有“/*到*/”
+7.将“DELETE FROM”替换为“insert into”
+8.将“INSERT INTO”替换为“delete from”
+9.将“SET”替换为“where”
+10.将“WHERE”替换为“set”
+11.将“@1”替换为“id”
+12.将“@2”替换为“name”
+
+[root@rhel6 shell]# sed -n '/^###/p' mysqlbinlog.row |sed 's/###//'|sed 's/\/\*.*\*\///'|sed 's/DELETE FROM/insert into/'|sed 's/INSERT INTO/delete from/'|sed 's/WHERE/set/'|sed 's/SET/where/'|sed 's/@1/id/'|sed 's/@2/name/'
+ delete from `db2`.`t1`
+ where
+   id=1 
+   name='superman' 
+ delete from `db2`.`t1`
+ where
+   id=2 
+   name='batman' 
+ UPDATE `db2`.`t1`
+ set
+   id=1 
+   name='superman' 
+ where
+   id=1 
+   name='leo' 
+ UPDATE `db2`.`t1`
+ set
+   id=2 
+   name='batman' 
+ where
+   id=2 
+   name='leo' 
+ insert into `db2`.`t1`
+ set
+   id=1 
+   name='leo' 
+ insert into `db2`.`t1`
+ set
+   id=2 
+   name='leo'
+
+[root@rhel6 shell]# sed -n '/^###/p' mysqlbinlog.row |sed 's/###//;s/\/\*.*\*\///;s/DELETE FROM/insert into/;s/INSERT INTO/delete from/;s/WHERE/set/;s/SET/where/;s/@1/id/;s/@2/name/'
+ delete from `db2`.`t1`
+ where
+   id=1 
+   name='superman' 
+ delete from `db2`.`t1`
+ where
+   id=2 
+   name='batman' 
+ UPDATE `db2`.`t1`
+ set
+   id=1 
+   name='superman' 
+ where
+   id=1 
+   name='leo' 
+ UPDATE `db2`.`t1`
+ set
+   id=2 
+   name='batman' 
+ where
+   id=2 
+   name='leo' 
+ insert into `db2`.`t1`
+ set
+   id=1 
+   name='leo' 
+ insert into `db2`.`t1`
+ set
+   id=2 
+   name='leo'
+
+课堂练习2
+
+1.将192.168.1.1替换成192.168.2.2
+2.将192.168.1.1替换成192.188.5.1
+3.将192.168.1.1替换成192.192.192.1
+4.将hello,babay中babay后面追加",mybabay"
+5.将hello,babay中hello后面追加",mybabay"
+6.将hello,babay替换为"hello1hello2hello3,babay"
+7.将/tmp/shadow的内容追加到/tmp/passwd中以root开头的行的后面
+8.将/tmp/passwd中以root开头的行和后面的2行写入/tmp/shadow
+
+[root@rhel6 shell]# echo 192.168.1.1|sed 's/\(192.168.\)1.1/\12.2/'
+192.168.2.2
+[root@rhel6 shell]# echo 192.168.1.1|sed 's/\(192.\)168.1\(.1\)/\1188.5\2/'
+192.188.5.1
+[root@rhel6 shell]# echo 192.168.1.1|sed 's/\(192.\)168.1\(.1\)/\1\1\11/'
+192.192.192.1
+ 
+ 
+[root@rhel6 shell]# echo hello,babay|sed 's/babay/&,mybabay/'
+hello,babay,mybabay
+[root@rhel6 shell]# echo hello,babay|sed 's/hello/&,mybabay/'
+hello,mybabay,babay
+[root@rhel6 shell]# echo hello,babay|sed 's/hello/&1&2&3/'
+hello1hello2hello3,babay
+ 
+[root@rhel6 shell]# sed '/^root/r /tmp/shadow' /tmp/passwd
+[root@rhel6 shell]# sed '/^root/,+2w /tmp/shadow' /tmp/passwd
+
+课后习题
+
+    1.将selinux设置成开机关闭状态。用sed完成 2.设置当前用户的umask值永久生效为033 ~/.bashrc。用sed完成
+
+

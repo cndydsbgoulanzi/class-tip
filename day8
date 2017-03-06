@@ -1,0 +1,391 @@
+day8 20160727
+
+复习昨日
+1.日志	软件	命令	运行方式		功能				
+	rsyslog		rhel6 rsyslogd	负责收集系统内核和应用程序信息的软件
+			rhel7 rsyslog.service
+					负责系统日志轮询的软件
+	logrotate logrotate
+服务的启动命令
+		rhel6 service rsyslog start/stop/status
+		rhel7 systemctl start rsyslog
+命令的使用方法
+	logrotate -vf /etc/logrotate.conf
+=================================================================================
+2.计划任务
+		软件	命令	运行方式		功能
+				rhel6 atd
+一次性计划任务	at	at	rhel7 atd.service		
+周期性计划任务	cronie	crontab	rhel6 crond
+				rhel7 crond.service
+
+服务的启动命令
+	service atd start		
+	systemctl start atd
+		
+命令的使用方法
+	at [datetime] 回车
+>echo "kkkk"|wall
+ctrl+d
+
+student	crontab -e
+每天早上8点 wall
+0 8 * * * /
+----------------------------------
+root crontab -u student -e
+-----------------------------------
+  
+
+============================================================================
+今日内容
+
+# 安装系统
+重置install这台虚拟机
+yes|rht-vmctl reset install
+------------------------------------
+双击打开install
+鼠标点进去，如果要出来，按ctrl+alt
+
+安装源
+	http://172.25.254.254/content/rhel7.0/x86_64/dvd/
+安装软件
+	带图形化界面的或者最小化安装
+系统安装的盘disk
+网络和主机名
+root用户的密码
+安装进度条结束后，reboot
+
+license information 选择接受
+----------------------------------------------
+安装 rhel7 操作系统
+第 1 步 : 打开虚拟机 View install
+第 2 步 : 敲击回车。
+第 3 步 : 等待即可。
+第 4 步 : 选择安装系统时的语言。
+第 5 步 : 配置信息界面 , 敲击 “ Installation Destination” 。
+第 6 步 : 进入后选择硬盘并点击左上角 “ Done” 。
+第 7 步 : 返回主页面后再点击 “ Software Selection” 后选择 "Server With GUI" 。
+第 8 步 : 返回主页面后再点击 "Network & Hostname" 后设置主机名 "linuxprobe.com" 。
+第 9 步 : 一切就绪后返回主页面并点击 “ Begin Installation” 。
+第 10 步 : 点击 “ Root Password” 。
+第 11 步 : 设置 Root 用户的密码(简单密码请双击 Done )
+第 12 步 : 等待安装完成后点击 “ Reboot” 。
+第 13 步 : 重启后选择 “ License Instormation” 。
+第 14 步 : 选中 “ I accept the license agreement” 后敲击 “ Done” 。
+第 15 步 : 敲击 “ Finish Configuration” 。
+第 16 步 : 为本书后章讲到的 “ Kdump” 建议开启(默认)。
+第 17 步 : 选择 “ No.I prefer to register at later time.” 。
+第 18 步 : 选择系统语言 , (用英文版完成)。
+第 19 步 : 选择输入资源,默认即可。
+第 20 步 : 创建一个本地用户(权限比 Root 小,但更加安全)。
+第 21 步 : 设置系统时间(上海 . 中国)。
+第 22 步 : 选择 “ Start using Red Hat Enterprise Linux Server” 。
+第 23 步 : 恭喜,您已经顺利的安装了红帽 RHEL7 操作系统。
+
+=======================================================================
+文件系统和磁盘管理
+-----------------------------------
+# 冯.诺伊曼三大原理 
+	1）计算机硬件组成分为5大部分：控制器、运算器、存储器、输入和输出
+	2）存储程序，让程序来指挥计算机自动的完成各种工作
+	3）计算机运算的基础采用二进制
+# 资源虚拟化
+	进程抽象
+		虚存抽象
+			文件抽象
+	处理器	主存	设备（硬盘，输入，输出）
+
+# Linux操作系统的内核的功能:
+	进程的调度和管理
+	主存管理和虚存管理
+	VFS和文件管理
+	设备管理
+	网络接口和通信
+	用来实现资源的抽象、资源的分配、资源共享等功能。
+--------------------------
+	进程管理
+	内存管理
+	文件系统管理
+	设备管理
+-------------------------------------
+# 文件系统的概念
+	在操作系统当中负责管理和存储文件信息的软件，文件管理系统，简称文件系统
+	具体地来说，它负责为用户创建文件，存入、读出、修改、转储文件，控制文件的存取，当用户不再需要使用的时候，能删除。
+
+# 文件系统的类型
+[root@rhel7 ~]# ls /lib/modules/$(uname -r)/kernel/fs/
+	当前系统的核心所支持的文件系统有哪些？
+[root@rhel7 ~]# more /proc/filesystems 
+
+# 文件系统的结构
+索引式
+inode 	存放文件目录的属性 block号 ll -i
+block	存放真实数据的块	文件内容；目录--目录当中的文件或者目录的名称和对应的inode号
+
+super block 记录文件系统的整体信息，innode/block的总量，使用量，剩余量，以及文件系统的格式。
+
+
+# 红帽企业版默认的文件系统
+rhel6	ext4	稳定，性能高，可靠性强
+rhel7   xfs	海量小文件，很多超大的文件
+
+# 文件系统的简单操作
+	df	查看当前目录树下挂接了哪些文件系统
+		-h 人性化的显示大小
+		-a 显示所有已挂接的文件系统
+	du	查看文件和目录的真实大小
+		-s	目录中的文件大小的总和
+		-h	人性化的显示大小
+
+linux系统中硬盘的文件名
+
+/dev/sd[a-P] 15 SCSI，SATA，FLASH
+/dev/vda	虚拟的
+/dev/hd[a-]	IDE
+
+[root@rhel7 ~]# df
+文件系统				单位	已使用	还有多少 百分比 挂接在目录树下的哪个目录
+Filesystem                 1K-blocks    Used Available Use% Mounted on
+/dev/mapper/vg--rhel7-root  17836032 3304140  14531892  19% /
+devtmpfs                      499680       0    499680   0% /dev
+tmpfs                         508996      80    508916   1% /dev/shm
+tmpfs                         508996    7024    501972   2% /run
+tmpfs                         508996       0    508996   0% /sys/fs/cgroup
+/dev/mapper/vg--rhel7-home    508588   25896    482692   6% /home
+/dev/vda1                     508588  121304    387284  24% /boot
+特殊的文件系统
+虚拟文件系统不占空间
+/dev/shm 目录是使用的内存
+[root@rhel7 ~]# ll /dev/shm -d
+drwxrwxrwt 2 root root 120 Jul 26 22:02 /dev/shm
+[root@rhel7 ~]# du -sh /tmp
+28K	/tmp
+# 目录树
+目录树-----文件系统----磁盘分区格式
+
+==========================================
+------------------------------------------
+# 磁盘的分割、格式化和挂载
+～～～～～～～～～～～～～～～～
+# 磁盘Disk的物理结构
+	磁头heads	个
+	磁柱cylinders	个
+	扇区sectors	个	512bytes/个
+	公式：计算磁盘的大小
+	磁盘大小=磁头*磁柱*扇区
+	16*41610*63*512=21474754560bytes
+
+------------------------------
+
+ C      D      E     F
+1------1------1-----1-------------
+ windows linux
+
+MBR 主要启动记录区	512byets
+boot loader 		446   
+
+m1 
+m2
+---------------------------------------
+# 磁盘的分割
+	fdisk
+		-l	列出当前系统可以用的磁盘
+		/dev/vdb 划分分区
+			fdisk /dev/vdb
+	
+		n	创建新的分区
+			extended	拓展分区---逻辑分区（5-）			
+			primary 	主分区（1-4）
+			一共4个，拓展分区最多一个
+=================================================
+课堂练习：
+1.划分/dev/vdb/创建2个主分区，2个逻辑分区
+检查是否创建成功
+[root@rhel6 ~]# ls /dev|grep vdb
+vdb1
+vdb2
+vdb3
+vdb5
+vdb6
+
+---------------------------------------
+# 分区格式化
+	mkfs
+vdb[root@rhel6 ~]# mkfs
+mkfs          mkfs.ext2     mkfs.ext4     mkfs.msdos    
+mkfs.cramfs   mkfs.ext3     mkfs.ext4dev  mkfs.vfat
+	
+[root@rhel6 ~]# mkfs.ext4 /dev/vdb1
+[root@rhel7 ~]# mkfs.xfs /dev/vdb1
+-----------------------------------------------------------
+===================================================================
+挂载
+将文件系统与目录树结合的动作叫做挂载，挂接。
+
+硬盘---分区---格式创建文件系统---挂载目录树----被我们使用
+
+命令	mount	挂载
+		直接回车	查看当前系统中挂接的文件系统以及挂接的目录
+		本地挂载	mount 文件系统	目录
+				mount /dev/vdb1 /mnt/test1 
+		远程挂载	mount ip:绝对路径 目录	
+				mount 172.25.254.250:/content /mnt/test5
+		-t 宣告要挂接的文件系统的类型	
+				mount -t ext4 /dev/vdb1 /mnt/test1
+		-t iso9660	挂接dvd/cd
+		-o loop		挂接镜像文件，iso
+				mount -o loop /tmp/xxx.iso /mnt
+		-o ro		以只读的方式挂接
+		-o remount,rw	重新挂接，可读可写
+				mount -o remount,rw 挂接的目录
+	umount	卸载
+		umount /mnt/test1
+
+
+
+1.将/dev/vdb{1,2,5,6}分别挂载到/mnt/test{1..4},之后再卸载。
+
+[root@rhel6 ~]# mkdir /mnt/test{1..4}
+[root@rhel6 ~]# ll /mnt
+total 16
+drwxr-xr-x. 2 root root 4096 Jul 27 15:27 test1
+drwxr-xr-x. 2 root root 4096 Jul 27 15:27 test2
+drwxr-xr-x. 2 root root 4096 Jul 27 15:27 test3
+drwxr-xr-x. 2 root root 4096 Jul 27 15:27 test4
+[root@rhel6 ~]# ll /dev/vdb*
+brw-rw----. 1 root disk 252, 16 Jul 27 15:17 /dev/vdb
+brw-rw----. 1 root disk 252, 17 Jul 27 15:19 /dev/vdb1
+brw-rw----. 1 root disk 252, 18 Jul 27 15:20 /dev/vdb2
+brw-rw----. 1 root disk 252, 19 Jul 27 15:17 /dev/vdb3
+brw-rw----. 1 root disk 252, 21 Jul 27 15:21 /dev/vdb5
+brw-rw----. 1 root disk 252, 22 Jul 27 15:21 /dev/vdb6
+[root@rhel6 ~]# mount /dev/vdb1 /mnt/test1
+[root@rhel6 ~]# mount
+/dev/mapper/vg_rhel6-LogVol01 on / type ext4 (rw)
+proc on /proc type proc (rw)
+sysfs on /sys type sysfs (rw)
+devpts on /dev/pts type devpts (rw,gid=5,mode=620)
+tmpfs on /dev/shm type tmpfs (rw,rootcontext="system_u:object_r:tmpfs_t:s0")
+/dev/vda1 on /boot type ext4 (rw)
+/dev/mapper/vg_rhel6-LogVol00 on /home type ext4 (rw)
+none on /proc/sys/fs/binfmt_misc type binfmt_misc (rw)
+/dev/vdb1 on /mnt/test1 type ext4 (rw)
+	
+[root@rhel6 ~]# umount /mnt/test1
+[root@rhel6 ~]# mount
+/dev/mapper/vg_rhel6-LogVol01 on / type ext4 (rw)
+proc on /proc type proc (rw)
+sysfs on /sys type sysfs (rw)
+devpts on /dev/pts type devpts (rw,gid=5,mode=620)
+tmpfs on /dev/shm type tmpfs (rw,rootcontext="system_u:object_r:tmpfs_t:s0")
+/dev/vda1 on /boot type ext4 (rw)
+/dev/mapper/vg_rhel6-LogVol00 on /home type ext4 (rw)
+none on /proc/sys/fs/binfmt_misc type binfmt_misc (rw)
+
+
+
+
+
+2.将/dev/vdb1挂载到/mnt/test1目录，在该目录中创建文件file-vdb1；
+将/dev/vdb2挂载到/mnt/test1目录，查看该目录下的文件，并在该目录中创建文件file-vdb2；
+将/dev/vdb3挂载到/mnt/test1目录，查看该目录下的文件，并在该目录中创建文件file-vdb3；
+取消挂载。
+[root@rhel6 ~]# mount -t ext4 /dev/vdb1 /mnt/test1
+[root@rhel6 ~]# mount|tail -n 1
+/dev/vdb1 on /mnt/test1 type ext4 (rw)
+[root@rhel6 ~]# touch /mnt/test1/file 
+[root@rhel6 ~]# ll /mnt/test1
+total 16
+-rw-r--r--. 1 root root     0 Jul 27 15:46 file
+drwx------. 2 root root 16384 Jul 27 15:19 lost+found
+[root@rhel6 ~]# mount /dev/vdb2 /mnt/test1
+[root@rhel6 ~]# mount|grep vdb
+/dev/vdb1 on /mnt/test1 type ext4 (rw)
+/dev/vdb2 on /mnt/test1 type ext4 (rw)
+[root@rhel6 ~]# ll /mnt/test1
+total 16
+drwx------. 2 root root 16384 Jul 27 15:20 lost+found
+[root@rhel6 ~]# touch /mnt/test1/file-vdb2
+[root@rhel6 ~]# ll /mnt/test1
+total 16
+-rw-r--r--. 1 root root     0 Jul 27 15:49 file-vdb2
+drwx------. 2 root root 16384 Jul 27 15:20 lost+found
+[root@rhel6 ~]# mount /dev/vdb5 /mnt/test1
+[root@rhel6 ~]# mount|grep vdb
+/dev/vdb1 on /mnt/test1 type ext4 (rw)
+/dev/vdb2 on /mnt/test1 type ext4 (rw)
+/dev/vdb5 on /mnt/test1 type ext4 (rw)
+[root@rhel6 ~]# ll /mnt/test1
+total 16
+drwx------. 2 root root 16384 Jul 27 15:21 lost+fou
+
+
+
+[root@rhel6 test1]# pwd
+/mnt/test1
+[root@rhel6 test1]# umount /mnt/test1
+umount: /mnt/test1: device is busy.
+        (In some cases useful info about processes that use
+         the device is found by lsof(8) or fuser(1))
+[root@rhel6 test1]# cd 
+[root@rhel6 ~]# umount /mnt/test1
+[root@rhel6 ~]# mount|grep vdb
+/dev/vdb1 on /mnt/test1 type ext4 (rw)
+/dev/vdb2 on /mnt/test1 type ext4 (rw)
+[root@rhel6 ~]# umount /mnt/test1
+[root@rhel6 ~]# mount|grep vdb
+/dev/vdb1 on /mnt/test1 type ext4 (rw)
+[root@rhel6 ~]# ll /mnt/test1
+total 16
+-rw-r--r--. 1 root root     0 Jul 27 15:46 file
+drwx------. 2 root root 16384 Jul 27 15:19 lost+found
+[root@rhel6 ~]# umount /mnt/test1
+[root@rhel6 ~]# mount|grep vdb
+
+3.以只读方式挂载/dev/vdb1到/mnt/test1目录，让后再重新挂载，可读可写。
+
+[root@rhel6 ~]# mount |tail -n 1
+/dev/vdb1 on /mnt/test1 type ext4 (ro)
+[root@rhel6 ~]# touch /mnt/test1/file-2 
+touch: cannot touch `/mnt/test1/file-2': Read-only file system
+[root@rhel6 ~]# mount -o remount,rw /mnt/test1
+[root@rhel6 ~]# mount |tail -n 1
+/dev/vdb1 on /mnt/test1 type ext4 (rw)
+[root@rhel6 ~]# touch /mnt/test1/file-2 
+
+4.远程挂载教师机上/content/
+mount ip:/content /mnt/test4
+[root@rhel6 ~]# mount 172.25.254.250:/content /mnt
+[root@rhel6 ~]# cd /mnt
+[root@rhel6 mnt]# ls
+boot     ks         ntfs-3g  rhel6.7  rhel7.1  rhtops  Storage  ula
+courses  manifests  rhel6.5  rhel7.0  rhel7.2  slides  ucf      ULE
+
+-------------------------------------------------------------------
+总结：
+	1.对某个挂载点（挂载的目录）重复挂载，会覆盖之前的文件系统，只能看到最后一次挂载的文件系统中的内容；
+	2.不要在挂载点里执行umount命令，会报错；
+	3.尽量不要载挂载点里执行mount命令挂载到该目录
+	4.mount命令为临时生效
+
+==================================================================
+永久生效的方法，写入配置文件/etc/fstab
+
+设备		 挂载点 	文件系统类型 	选项 	是否需要备份 是否需要检测
+/dev/vdb1 	/mnt/test1 	ext4 		defaults 0 		0
+
+是否需要检测: 非 0 代表检测 , 数字越小优先级越高
+-------------------------------------------------
+修改后保存, 通过 mount -a 让配置生效
+
+
+
+
+
+
+
+
+
+
+
+
